@@ -72,6 +72,10 @@ export async function deleteImage(id: string): Promise<void> {
   await request(`/api/images/${id}`, { method: "DELETE" });
 }
 
+export async function deleteImages(ids: string[]): Promise<void> {
+  await Promise.all(ids.map((id) => deleteImage(id)));
+}
+
 // --- Generate (SSE) ---
 
 export function generateImage(

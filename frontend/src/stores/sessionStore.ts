@@ -6,7 +6,7 @@ interface SessionState {
   sessions: Session[];
   activeSessionId: string | null;
   images: Image[];
-  selectedImageId: string | null;
+  selectedImageIds: string[];
   loading: boolean;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
@@ -17,16 +17,18 @@ interface SessionState {
   deleteSession: (id: string) => Promise<void>;
   renameSession: (id: string, name: string) => Promise<void>;
   selectImage: (id: string | null) => void;
+  toggleImageSelect: (id: string) => void;
+  clearSelection: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
   images: [],
-  selectedImageId: null,
+  selectedImageIds: [],
   loading: false,
   searchQuery: "",
-  setSearchQuery: (q: string) => set({ searchQuery: q }),
+  setSearchQuery: (q) => set({ searchQuery: q }),
 
   fetchSessions: async () => {
     const sessions = await api.listSessions();
@@ -34,7 +36,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   selectSession: async (id: string) => {
-    set({ loading: true, activeSessionId: id, selectedImageId: null });
+    set({ loading: true, activeSessionId: id, selectedImageIds: [] });
     try {
       const images = await api.getSessionImages(id);
       set({ images });
@@ -56,8 +58,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       activeSessionId:
         state.activeSessionId === id ? null : state.activeSessionId,
       images: state.activeSessionId === id ? [] : state.images,
-      selectedImageId:
-        state.activeSessionId === id ? null : state.selectedImageId,
+      selectedImageIds:
+        state.activeSessionId === id ? [] : state.selectedImageIds,
     }));
   },
 
@@ -71,6 +73,21 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   selectImage: (id: string | null) => {
-    set({ selectedImageId: id });
+    set({ selectedImageIds: id ? [id] : [] });
+  },
+
+  toggleImageSelect: (id: string) => {
+    set((state) => {
+      const sel = state.selectedImageIds;
+      return {
+        selectedImageIds: sel.includes(id)
+          ? sel.filter((x) => x !== id)
+          : [...sel, id],
+      };
+    });
+  },
+
+  clearSelection: () => {
+    set({ selectedImageIds: [] });
   },
 }));

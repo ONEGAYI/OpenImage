@@ -69,7 +69,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         });
         onSuccess?.();
         import("./sessionStore").then(({ useSessionStore }) => {
-          useSessionStore.getState().selectSession(sessionId);
+          const store = useSessionStore.getState();
+          Promise.all([store.fetchSessions(), store.selectSession(sessionId)]);
         });
       },
       (code, message) => {
