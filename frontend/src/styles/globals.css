@@ -1,26 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 :root {
-  --color-bg: #0f172a;
-  --color-surface: #1e293b;
-  --color-border: #334155;
-  --color-text: #e2e8f0;
-  --color-muted: #94a3b8;
-  --color-accent: #3b82f6;
+  /* 背景系统 */
+  --bg: #f5f4ed;
+  --surface: #faf9f5;
+  --sidebar-bg: #ebe8de;
+  --input-bg: #ffffff;
+  --card-bg: #ffffff;
+  --sand: #e8e6dc;
+  --silver: #b0aea5;
+
+  /* 文字系统 */
+  --fg: #141413;
+  --muted: #5e5d59;
+  --faint: #87867f;
+
+  /* 边框系统 */
+  --border: #e8e6dc;
+  --border-s: #f0eee6;
+  --ring: #d1cfc5;
+
+  /* 强调色 */
+  --accent: #c96442;
+  --accent-h: #b35537;
+
+  /* 语义色 */
+  --error: #b53333;
+  --info: #3898ec;
+  --success: #4a7c59;
+
+  /* 阴影 */
+  --card-shadow: rgba(0,0,0,0.04);
+  --overlay: rgba(20,20,19,0.5);
+
+  /* 字体 */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* 布局 */
+  --sidebar-w: 260px;
+  --detail-w: 310px;
+  --topbar-h: 52px;
 }
 
+[data-theme="dark"] {
+  --bg: #141413;
+  --surface: #1e1d1b;
+  --sidebar-bg: #1a1918;
+  --input-bg: #1e1d1b;
+  --card-bg: #1e1d1b;
+  --sand: #2a2927;
+  --silver: #5e5d59;
+
+  --fg: #faf9f5;
+  --muted: #b0aea5;
+  --faint: #87867f;
+
+  --border: #30302e;
+  --border-s: #252422;
+  --ring: #4d4c48;
+
+  --accent: #d97757;
+  --accent-h: #c96442;
+
+  --error: #e05555;
+  --info: #5aabf0;
+  --success: #6aad7a;
+
+  --card-shadow: rgba(0,0,0,0.2);
+  --overlay: rgba(0,0,0,0.7);
+}
+
+/* 基础重置 */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
 body {
-  margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
-  font-family: system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
 }
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; font-size: inherit; }
+input, textarea, select { font-family: inherit; font-size: inherit; color: var(--fg); }
+img { display: block; max-width: 100%; }
 
-#root {
-  height: 100vh;
-}
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 
-* {
-  box-sizing: border-box;
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
+.animate-fadeIn { animation: fadeIn 0.3s ease-out; }
