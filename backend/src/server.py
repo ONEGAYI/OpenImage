@@ -1,0 +1,61 @@
+# backend/src/server.py
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from src.core.config import Config
+from src.core.database import Database
+from src.core.storage import ImageStore
+from src.core.session import SessionManager
+from src.core.client import ImageClient
+
+from src.api import sessions as sessions_api
+from src.api import generate as generate_api
+from src.api import images as images_api
+from src.api import settings as settings_api
+
+
+def create_app(base_dir: Path | None = None) -> FastAPI:
+    config = Config(base_dir=base_dir)
+    config.ensure_dirs()
+
+    db = Database(config)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        await db.initialize()
+        app.state.db = db
+        app.state.config = config
+        app.state.sessions = SessionManager(db)
+        app.state.store = ImageStore(config)
+
+        api_key = await db.get_setting("api_key")
+        app.state.client = ImageClient(api_key) if api_key else None
+        app.state.settings = {"api_key": api_key}
+
+        yield
+        await db.close()
+
+    app = FastAPI(title="OpenImage", version="0.1.0", lifespan=lifespan)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["tauri://localhost", "http://localhost:1420"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    app.include_router(sessions_api.router)
+    app.include_router(generate_api.router)
+    app.include_router(images_api.router)
+    app.include_router(settings_api.router)
+
+    return app
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(create_app(), host="127.0.0.1", port=8765)
