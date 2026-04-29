@@ -32,7 +32,19 @@ class SessionManager:
     async def list_all(self) -> list[dict]:
         conn = self._db.connection()
         cursor = await conn.execute(
-            "SELECT * FROM sessions ORDER BY updated_at DESC"
+            """
+            SELECT
+                s.*,
+                COUNT(i.id) as image_count,
+                (SELECT i2.id FROM images i2
+                 WHERE i2.session_id = s.id
+                 ORDER BY i2.step DESC LIMIT 1
+                ) as latest_image_id
+            FROM sessions s
+            LEFT JOIN images i ON i.session_id = s.id
+            GROUP BY s.id
+            ORDER BY s.updated_at DESC
+            """
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]

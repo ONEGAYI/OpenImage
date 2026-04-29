@@ -4,6 +4,8 @@ export interface Session {
   created_at: string;
   updated_at: string;
   head_response_id: string | null;
+  image_count?: number;
+  latest_image_id?: string | null;
 }
 
 export interface Image {
