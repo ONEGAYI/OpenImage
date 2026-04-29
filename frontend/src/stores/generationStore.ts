@@ -58,7 +58,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       (_index, b64) => {
         set({ partialImage: `data:image/png;base64,${b64}` });
       },
-      (data: GenerateCompleted) => {
+      (_data: GenerateCompleted) => {
         set({
           isGenerating: false,
           partialImage: null,
