@@ -208,6 +208,10 @@ class ImageClient:
         payload: dict[str, Any] = {
             "model": self.model_name,
             "messages": [{"role": "user", "content": content}],
+            "tools": [{
+                "type": "image_generation",
+                **self._extract_params(params or {}),
+            }],
         }
 
         resp = await self._http.post(

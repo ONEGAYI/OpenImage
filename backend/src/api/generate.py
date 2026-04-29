@@ -2,9 +2,11 @@
 import base64
 import json
 import uuid
+from io import BytesIO
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from PIL import Image
 from pydantic import BaseModel
 
 from src.core.client import API_MODE_CHAT
@@ -77,6 +79,15 @@ def _read_image_b64(store, relative_path: str) -> str | None:
     return base64.b64encode(path.read_bytes()).decode()
 
 
+def _get_image_size(image_data: bytes) -> str | None:
+    """读取图片实际尺寸，返回 "WxH" 格式"""
+    try:
+        img = Image.open(BytesIO(image_data))
+        return f"{img.size[0]}x{img.size[1]}"
+    except OSError:
+        return None
+
+
 async def _save_generated_image(
     request: Request,
     session_id: str,
@@ -94,6 +105,8 @@ async def _save_generated_image(
 
     image_data = base64.b64decode(image_b64)
     file_path = store.save_image(session_id, image_data, params.output_format)
+
+    actual_size = _get_image_size(image_data) or params.size
 
     conn = db.connection()
     cursor = await conn.execute(
@@ -114,7 +127,7 @@ async def _save_generated_image(
         (
             img_id, session_id, step, response_id, prompt,
             revised_prompt, parent_image_id, relative_path,
-            params.size, params.quality, params.output_format,
+            actual_size, params.quality, params.output_format,
         ),
     )
     await conn.commit()
@@ -127,7 +140,7 @@ async def _save_generated_image(
         "revised_prompt": revised_prompt,
         "step": step,
         "file_path": relative_path,
-        "size": params.size,
+        "size": actual_size,
         "quality": params.quality,
     }
 
