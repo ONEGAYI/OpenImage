@@ -88,7 +88,6 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         background: "var(--bg)",
         borderColor: "var(--border)",
         padding: "12px 20px 14px",
-        minHeight: "140px",
         transition: "background 0.3s, border-color 0.3s",
       }}
     >
