@@ -8,6 +8,19 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 _SETTING_FIELDS = ("api_key", "base_url", "api_mode", "model_name")
 
+_ENDPOINT_PATHS = {
+    "responses": "/responses",
+    "images": "/images/generations",
+    "chat": "/chat/completions",
+}
+
+
+def _resolve_endpoint(base_url: str | None, api_mode: str) -> str:
+    raw = (base_url or "https://api.openai.com/v1").rstrip("/")
+    if not raw.endswith("/v1"):
+        raw += "/v1"
+    return raw + _ENDPOINT_PATHS.get(api_mode, "")
+
 
 class SettingsUpdate(BaseModel):
     api_key: str | None = None
@@ -44,6 +57,7 @@ async def get_settings(request: Request):
         "api_key_preview": f"...{api_key[-4:]}" if api_key else None,
         "api_key": api_key,
         **{k: settings[k] for k in ("base_url", "api_mode", "model_name")},
+        "resolved_endpoint": _resolve_endpoint(settings["base_url"], settings["api_mode"]),
     }
 
 

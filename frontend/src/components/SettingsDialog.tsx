@@ -8,6 +8,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [modelName, setModelName] = useState("gpt-image-2");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [resolvedEndpoint, setResolvedEndpoint] = useState("");
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -15,6 +16,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       if (s.base_url) setBaseUrl(s.base_url);
       if (s.api_mode) setApiMode(s.api_mode);
       if (s.model_name) setModelName(s.model_name);
+      if (s.resolved_endpoint) setResolvedEndpoint(s.resolved_endpoint);
     });
   }, []);
 
@@ -96,6 +98,12 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           <option value="responses">Responses API（OpenAI 原生，支持多轮编辑）</option>
         </select>
         <div className="text-xs mb-3" style={{ color: "var(--faint)" }}>第三方代理推荐 Chat Completions 或 Images API</div>
+
+        {resolvedEndpoint && (
+          <div className="mb-3 rounded-lg px-3 py-2 text-xs font-mono break-all select-all" style={{ background: "var(--input-bg)", color: "var(--muted)", border: "1px solid var(--border)" }}>
+            <span style={{ color: "var(--faint)" }}>端点 </span>{resolvedEndpoint}
+          </div>
+        )}
 
         <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>模型名称</label>
         <input
