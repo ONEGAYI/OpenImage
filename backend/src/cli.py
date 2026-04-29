@@ -1,5 +1,6 @@
 # backend/src/cli.py
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -22,8 +23,26 @@ _NON_RETRYABLE_KEYWORDS = (
 
 
 def _get_base_dir() -> Path:
-    """获取数据目录，默认为当前工作目录"""
-    return Path.cwd()
+    """获取数据目录
+
+    开发环境：项目根目录（当前文件向上两级）
+    打包后（PyInstaller）：系统标准应用数据目录
+      - Windows: %APPDATA%/OpenImage
+      - macOS: ~/Library/Application Support/OpenImage
+      - Linux: ~/.local/share/OpenImage
+    """
+    if getattr(sys, 'frozen', False):
+        if sys.platform == 'win32':
+            base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+        elif sys.platform == 'darwin':
+            base = Path.home() / 'Library' / 'Application Support'
+        else:
+            base = Path.home() / '.local' / 'share'
+        base_dir = base / 'OpenImage'
+    else:
+        base_dir = Path(__file__).parent.parent
+
+    return base_dir
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -50,13 +69,18 @@ async def _retry(coro_fn, label: str):
 
 
 @app.command()
-def serve(port: int = 8765):
+def serve(
+    port: int = 8765,
+    base_dir: str = typer.Option(None, "--base-dir", help="数据目录覆盖"),
+):
     """启动 HTTP API 服务"""
     import uvicorn
     from src.server import create_app
 
+    resolved = Path(base_dir) if base_dir else _get_base_dir()
     console.print(f"[green]Starting OpenImage server on port {port}...[/green]")
-    uvicorn.run(create_app(_get_base_dir()), host="127.0.0.1", port=port)
+    console.print(f"[dim]Data directory: {resolved}[/dim]")
+    uvicorn.run(create_app(resolved), host="127.0.0.1", port=port)
 
 
 async def _load_client(db):

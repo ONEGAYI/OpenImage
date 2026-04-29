@@ -39,11 +39,11 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         yield
         await db.close()
 
-    app = FastAPI(title="OpenImage", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="OpenImage", version="1.0.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["tauri://localhost", "http://localhost:1420"],
+        allow_origins=["tauri://localhost", "https://tauri.localhost", "http://localhost:1420"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

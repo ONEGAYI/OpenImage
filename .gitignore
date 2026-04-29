@@ -2,7 +2,6 @@
 __pycache__/
 *.pyc
 .venv/
-dist/
 *.egg-info/
 
 # Node
@@ -11,6 +10,11 @@ frontend/dist/
 
 # Tauri
 frontend/src-tauri/target/
+frontend/src-tauri/binaries/
+
+# PyInstaller
+backend/dist/
+backend/build/
 
 # IDE
 .vscode/

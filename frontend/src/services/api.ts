@@ -6,7 +6,9 @@ import type {
   SettingsResponse,
 } from "../types";
 
-const BASE_URL = "http://localhost:8765";
+const BASE_URL = import.meta.env.DEV 
+  ? "http://localhost:8765"
+  : "http://127.0.0.1:8765";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -150,4 +152,22 @@ export async function updateSettings(
     method: "PATCH",
     body: JSON.stringify(settings),
   });
+}
+
+// --- Backend readiness ---
+
+export async function waitForBackend(maxRetries = 60): Promise<void> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(`${BASE_URL}/api/settings`, {
+        method: "GET",
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok) return;
+    } catch {
+      // backend not ready yet
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error("Backend failed to start within 30 seconds");
 }

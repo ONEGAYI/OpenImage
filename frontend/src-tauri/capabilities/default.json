@@ -4,6 +4,16 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "shell:allow-open"
+    "shell:allow-open",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "args": true,
+          "name": "binaries/openimage-backend",
+          "sidecar": true
+        }
+      ]
+    }
   ]
 }
