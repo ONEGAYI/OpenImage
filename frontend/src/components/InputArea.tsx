@@ -225,6 +225,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     getSettings().then((s) => {
+      if (s.api_key) setApiKey(s.api_key);
       if (s.base_url) setBaseUrl(s.base_url);
     });
   }, []);

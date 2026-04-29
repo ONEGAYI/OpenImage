@@ -27,6 +27,7 @@ async def get_settings(request: Request):
     return {
         "api_key_set": api_key is not None,
         "api_key_preview": f"...{api_key[-4:]}" if api_key else None,
+        "api_key": api_key,
         "base_url": base_url,
     }
 
