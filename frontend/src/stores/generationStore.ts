@@ -19,6 +19,8 @@ interface GenerationState {
   ) => void;
   cancelGeneration: () => void;
   clearError: () => void;
+  pendingForkFrom: string | null;
+  setPendingForkFrom: (id: string | null) => void;
 }
 
 export const useGenerationStore = create<GenerationState>((set, get) => ({
@@ -27,6 +29,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   error: null,
   attachments: [],
   abortController: null,
+  pendingForkFrom: null,
 
   addAttachment: (file) =>
     set((state) => ({ attachments: [...state.attachments, file] })),
@@ -81,4 +84,6 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  setPendingForkFrom: (id) => set({ pendingForkFrom: id }),
 }));

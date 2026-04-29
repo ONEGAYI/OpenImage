@@ -15,6 +15,8 @@ export default function InputArea() {
     cancelGeneration,
     clearAttachments,
     clearError,
+    pendingForkFrom,
+    setPendingForkFrom,
   } = useGenerationStore();
 
   const [prompt, setPrompt] = useState("");
@@ -51,9 +53,10 @@ export default function InputArea() {
 
   const handleGenerate = () => {
     if (!activeSessionId || !prompt.trim() || isGenerating) return;
-    startGeneration(activeSessionId, prompt.trim());
+    startGeneration(activeSessionId, prompt.trim(), pendingForkFrom || undefined);
     setPrompt("");
     clearAttachments();
+    setPendingForkFrom(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -82,6 +85,19 @@ export default function InputArea() {
             className="text-red-400 hover:text-red-300 cursor-pointer"
           >
             x
+          </button>
+        </div>
+      )}
+
+      {/* Fork indicator */}
+      {pendingForkFrom && (
+        <div className="px-4 py-1.5 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between">
+          <span className="text-blue-400 text-xs">Forking from {pendingForkFrom.slice(0, 16)}...</span>
+          <button
+            onClick={() => setPendingForkFrom(null)}
+            className="text-blue-400 hover:text-blue-300 cursor-pointer text-xs"
+          >
+            Cancel
           </button>
         </div>
       )}

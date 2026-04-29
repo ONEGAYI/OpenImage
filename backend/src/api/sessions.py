@@ -49,6 +49,22 @@ async def rename_session(session_id: str, body: SessionRename, request):
     return await sm.rename(session_id, body.name)
 
 
+@router.get("/{session_id}/images")
+async def get_session_images(session_id: str, request):
+    sm = _sessions(request)
+    session = await sm.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db = request.app.state.db
+    conn = db.connection()
+    cursor = await conn.execute(
+        "SELECT * FROM images WHERE session_id = ? ORDER BY step ASC",
+        (session_id,),
+    )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
 @router.delete("/{session_id}")
 async def delete_session(session_id: str, request):
     sm = _sessions(request)

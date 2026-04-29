@@ -4,7 +4,7 @@ import { getImageFileUrl } from "../services/api";
 
 export default function DetailPanel() {
   const { images, selectedImageId } = useSessionStore();
-  const { startGeneration } = useGenerationStore();
+  const { setPendingForkFrom } = useGenerationStore();
 
   const selectedImage = images.find((img) => img.id === selectedImageId);
 
@@ -29,9 +29,7 @@ export default function DetailPanel() {
   };
 
   const handleFork = () => {
-    const sessionId = selectedImage.session_id;
-    const prompt = "";
-    startGeneration(sessionId, prompt, selectedImage.id);
+    setPendingForkFrom(selectedImage.id);
   };
 
   return (

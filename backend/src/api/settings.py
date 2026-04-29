@@ -26,4 +26,5 @@ async def update_settings(body: SettingsUpdate, request: Request):
         await db.set_setting("api_key", body.api_key)
         from src.core.client import ImageClient
         request.app.state.client = ImageClient(api_key=body.api_key)
+        request.app.state.settings["api_key"] = body.api_key
     return {"ok": True}
