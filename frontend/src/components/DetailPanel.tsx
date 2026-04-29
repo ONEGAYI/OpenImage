@@ -35,8 +35,8 @@ export default function DetailPanel() {
       </div>
       <div className="p-4 flex flex-col gap-3.5 flex-1">
         <div><div style={labelStyle}>Step</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{selectedImage.step}</div></div>
-        <div><div style={labelStyle}>Prompt</div><div className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{selectedImage.prompt}</div></div>
-        {selectedImage.revised_prompt && <div><div style={labelStyle}>Revised Prompt</div><div className="text-[13px] leading-relaxed italic" style={{ color: "var(--muted)" }}>{selectedImage.revised_prompt}</div></div>}
+        <div><div style={labelStyle}>Prompt</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)" }}>{selectedImage.prompt}</div></div>
+        {selectedImage.revised_prompt && <div><div style={labelStyle}>Revised Prompt</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)" }}>{selectedImage.revised_prompt}</div></div>}
         <div className="flex gap-4">
           {[{ label: "Size", value: selectedImage.size }, { label: "Quality", value: selectedImage.quality }, { label: "Format", value: selectedImage.output_format }].map(({ label, value }) => (
             <div key={label} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
@@ -45,17 +45,17 @@ export default function DetailPanel() {
         <div><div style={labelStyle}>Created</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{new Date(selectedImage.created_at).toLocaleString()}</div></div>
       </div>
       <div className="p-4 border-t flex flex-col gap-2 mt-auto" style={{ borderColor: "var(--border-s)" }}>
-        <button onClick={handleSave} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
+        <button onClick={handleSave} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
           style={{ background: "var(--accent)", color: "#faf9f5" }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
         >Save Image</button>
-        <button onClick={handleCopyPrompt} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+        <button onClick={handleCopyPrompt} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
           style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
         >Copy Prompt</button>
-        <button onClick={handleFork} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+        <button onClick={handleFork} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
           style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}

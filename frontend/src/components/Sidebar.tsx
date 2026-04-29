@@ -81,13 +81,13 @@ export default function Sidebar() {
       }}
     >
       {/* Header */}
-      <div className="p-5 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
+      <div className="py-5 px-4 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="mb-3.5" style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, color: "var(--fg)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
           Open<span style={{ color: "var(--accent)" }}>Image</span>
         </div>
         <button
           onClick={handleNew}
-          className="w-full rounded-lg text-sm font-medium transition-all"
+          className="w-full rounded-lg text-[13px] font-medium transition-all"
           style={{ padding: "9px 16px", background: "var(--accent)", color: "#faf9f5", letterSpacing: "0.01em" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-h)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.transform = "translateY(0)"; }}
@@ -106,7 +106,7 @@ export default function Sidebar() {
       </div>
 
       {/* Session list */}
-      <div className="flex-1 overflow-y-auto p-1.5">
+      <div className="flex-1 overflow-y-auto py-1.5 px-2">
         {filtered.length === 0 && (
           <div className="py-8 px-4 text-center text-[13px] leading-relaxed" style={{ color: "var(--faint)" }}>
             {searchQuery ? "无匹配会话" : "暂无会话"}
@@ -166,11 +166,11 @@ export default function Sidebar() {
           className="fixed z-50 p-1 min-w-[140px]"
           style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", boxShadow: "0 4px 20px var(--card-shadow)", left: contextMenu.x, top: contextMenu.y }}
         >
-          <button onClick={() => handleRename(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors" style={{ color: "var(--fg)" }}
+          <button onClick={() => handleRename(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors" style={{ color: "var(--fg)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--sand)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >Rename</button>
-          <button onClick={() => handleDelete(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors" style={{ color: "var(--error)" }}
+          <button onClick={() => handleDelete(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors" style={{ color: "var(--error)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
           >Delete</button>

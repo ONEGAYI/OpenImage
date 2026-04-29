@@ -24,11 +24,12 @@ export default function Topbar({ onOpenSettings }: TopbarProps) {
       }}
     >
       <div
-        className="font-semibold tracking-tight"
+        className="font-semibold"
         style={{
           fontFamily: "var(--font-display)",
           fontSize: "16px",
           color: "var(--fg)",
+          letterSpacing: "-0.01em",
         }}
       >
         {title}
@@ -63,7 +64,7 @@ export default function Topbar({ onOpenSettings }: TopbarProps) {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="relative rounded-full cursor-pointer border"
+          className="relative rounded-[14px] cursor-pointer border"
           style={{
             width: 50,
             height: 28,
