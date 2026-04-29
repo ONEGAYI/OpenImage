@@ -29,3 +29,12 @@ Thumbs.db
 
 # Superpowers brainstorm sessions
 .superpowers/
+
+# Serena LSP
+.serena/
+
+# Tauri codegen
+frontend/src-tauri/gen/
+
+# Misc
+references/
