@@ -10,6 +10,7 @@ from src.core.database import Database
 from src.core.storage import ImageStore
 from src.core.session import SessionManager
 from src.core.client import ImageClient
+from src.api.settings import _load_settings
 
 from src.api import sessions as sessions_api
 from src.api import generate as generate_api
@@ -31,10 +32,9 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         app.state.sessions = SessionManager(db)
         app.state.store = ImageStore(config)
 
-        api_key = await db.get_setting("api_key")
-        base_url = await db.get_setting("base_url")
-        app.state.client = ImageClient(api_key=api_key, base_url=base_url or None) if api_key else None
-        app.state.settings = {"api_key": api_key, "base_url": base_url}
+        settings = await _load_settings(db)
+        app.state.settings = settings
+        app.state.client = ImageClient.from_settings(settings)
 
         yield
         await db.close()

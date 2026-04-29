@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
-import { getSettings, updateApiKey } from "../services/api";
+import { getSettings, updateSettings } from "../services/api";
 import type { AttachedFile } from "../types";
 
 export default function InputArea() {
@@ -220,6 +220,8 @@ function fileToBase64(file: File): Promise<string> {
 function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [apiMode, setApiMode] = useState<"responses" | "images" | "chat">("chat");
+  const [modelName, setModelName] = useState("gpt-image-2");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -227,6 +229,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     getSettings().then((s) => {
       if (s.api_key) setApiKey(s.api_key);
       if (s.base_url) setBaseUrl(s.base_url);
+      if (s.api_mode) setApiMode(s.api_mode);
+      if (s.model_name) setModelName(s.model_name);
     });
   }, []);
 
@@ -234,7 +238,12 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      await updateApiKey(apiKey.trim(), baseUrl.trim());
+      await updateSettings({
+        api_key: apiKey.trim(),
+        ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
+        api_mode: apiMode,
+        model_name: modelName.trim(),
+      });
       setMessage("Settings saved");
       setTimeout(onClose, 800);
     } catch (err) {
@@ -246,10 +255,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] rounded-lg border border-[#334155] p-6 w-[400px] shadow-xl">
+      <div className="bg-[#1e293b] rounded-lg border border-[#334155] p-6 w-[420px] shadow-xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-medium text-[#e2e8f0] mb-4">Settings</h3>
 
-        <label className="block text-sm text-[#94a3b8] mb-1">OpenAI API Key</label>
+        <label className="block text-sm text-[#94a3b8] mb-1">API Key</label>
         <input
           type="password"
           value={apiKey}
@@ -264,9 +273,35 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
           placeholder="https://api.openai.com/v1"
-          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-4"
+          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-2"
         />
-        <div className="text-xs text-[#64748b] mb-4">留空则使用 OpenAI 默认地址，支持桥接服务地址</div>
+        <div className="text-xs text-[#64748b] mb-3">留空则使用 OpenAI 默认地址</div>
+
+        <label className="block text-sm text-[#94a3b8] mb-1">API 模式</label>
+        <select
+          value={apiMode}
+          onChange={(e) => setApiMode(e.target.value as "responses" | "images" | "chat")}
+          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] outline-none focus:border-[#3b82f6] mb-2 cursor-pointer"
+        >
+          <option value="chat">Chat Completions（/v1/chat/completions，推荐）</option>
+          <option value="images">Images API（/v1/images/generations）</option>
+          <option value="responses">Responses API（OpenAI 原生，支持多轮编辑）</option>
+        </select>
+        <div className="text-xs text-[#64748b] mb-3">
+          第三方代理推荐 Chat Completions 或 Images API
+        </div>
+
+        <label className="block text-sm text-[#94a3b8] mb-1">模型名称</label>
+        <input
+          type="text"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder="gpt-image-2"
+          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-2"
+        />
+        <div className="text-xs text-[#64748b] mb-4">
+          图像生成模型 ID，如 gpt-image-2、gemini-2.5-flash-image 等
+        </div>
 
         {message && (
           <div className="text-sm text-[#94a3b8] mb-3">{message}</div>

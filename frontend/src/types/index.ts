@@ -57,6 +57,8 @@ export interface SettingsResponse {
   api_key_preview: string | null;
   api_key: string | null;
   base_url: string | null;
+  api_mode: "responses" | "images" | "chat";
+  model_name: string;
 }
 
 export interface AttachedFile {
