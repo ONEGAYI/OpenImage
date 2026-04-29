@@ -15,7 +15,8 @@ interface GenerationState {
   startGeneration: (
     sessionId: string,
     prompt: string,
-    forkFrom?: string
+    forkFrom?: string,
+    onSuccess?: () => void
   ) => void;
   cancelGeneration: () => void;
   clearError: () => void;
@@ -41,7 +42,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
   clearAttachments: () => set({ attachments: [] }),
 
-  startGeneration: (sessionId, prompt, forkFrom) => {
+  startGeneration: (sessionId, prompt, forkFrom, onSuccess) => {
     const { attachments } = get();
     set({ isGenerating: true, partialImage: null, error: null });
 
@@ -66,6 +67,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
           isGenerating: false,
           partialImage: null,
         });
+        onSuccess?.();
         import("./sessionStore").then(({ useSessionStore }) => {
           useSessionStore.getState().selectSession(sessionId);
         });

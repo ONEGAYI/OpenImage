@@ -54,10 +54,16 @@ export default function InputArea() {
 
   const handleGenerate = () => {
     if (!activeSessionId || !prompt.trim() || isGenerating) return;
-    startGeneration(activeSessionId, prompt.trim(), pendingForkFrom || undefined);
-    setPrompt("");
-    clearAttachments();
-    setPendingForkFrom(null);
+    startGeneration(
+      activeSessionId,
+      prompt.trim(),
+      pendingForkFrom || undefined,
+      () => {
+        setPrompt("");
+        clearAttachments();
+        setPendingForkFrom(null);
+      }
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
