@@ -24,11 +24,7 @@ class ImageStore:
         return filepath
 
     def delete_image(self, path: Path) -> None:
-        """删除图片文件，忽略不存在的文件"""
-        try:
-            path.unlink(missing_ok=True)
-        except FileNotFoundError:
-            pass
+        path.unlink(missing_ok=True)
 
     def get_absolute_path(self, relative_path: str) -> Path:
         """将相对路径转为绝对路径"""

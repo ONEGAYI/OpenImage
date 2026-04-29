@@ -2,6 +2,8 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from src.core.session import SessionManager
+
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
@@ -13,9 +15,7 @@ class SessionRename(BaseModel):
     name: str
 
 
-# 注入点：在 server.py 中通过 router.state 注入 SessionManager
-def _sessions(request) -> "SessionManager":
-    from src.core.session import SessionManager
+def _sessions(request: Request) -> SessionManager:
     return request.app.state.sessions
 
 

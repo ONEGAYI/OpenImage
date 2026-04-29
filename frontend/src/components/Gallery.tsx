@@ -50,25 +50,25 @@ export default function Gallery() {
           </div>
         ))}
 
-        {isGenerating && partialImage && (
-          <div className="relative rounded-lg overflow-hidden bg-[#1e293b] aspect-square flex items-center justify-center ring-2 ring-[#3b82f6]/50 animate-pulse">
-            <img
-              src={partialImage}
-              alt="Generating..."
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className="text-white text-sm font-medium">Generating...</div>
-            </div>
-          </div>
-        )}
-
-        {isGenerating && !partialImage && (
+        {isGenerating && (
           <div className="relative rounded-lg overflow-hidden bg-[#1e293b] aspect-square flex items-center justify-center ring-2 ring-[#3b82f6]/50">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
-              <div className="text-[#94a3b8] text-sm">Generating...</div>
-            </div>
+            {partialImage ? (
+              <>
+                <img
+                  src={partialImage}
+                  alt="Generating..."
+                  className="w-full h-full object-cover animate-pulse"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <div className="text-white text-sm font-medium">Generating...</div>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+                <div className="text-[#94a3b8] text-sm">Generating...</div>
+              </div>
+            )}
           </div>
         )}
       </div>

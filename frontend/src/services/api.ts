@@ -10,8 +10,11 @@ const BASE_URL = "http://localhost:8765";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options?.headers,
+    },
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));

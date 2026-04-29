@@ -20,7 +20,6 @@ export default function Sidebar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const editRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSessions();
@@ -122,7 +121,6 @@ export default function Sidebar() {
 
       {contextMenu && (
         <div
-          ref={menuRef}
           className="fixed bg-[#1e293b] border border-[#334155] rounded-lg shadow-xl py-1 z-50 min-w-[120px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >

@@ -35,6 +35,15 @@ class ImageClient:
 
         return content
 
+    def _build_tool_config(
+        self, params: dict[str, Any], **extra: Any
+    ) -> dict[str, Any]:
+        config: dict[str, Any] = {"type": "image_generation", **extra}
+        for key in ("size", "quality", "output_format"):
+            if params.get(key):
+                config[key] = params[key]
+        return config
+
     async def generate(
         self,
         prompt: str,
@@ -45,14 +54,7 @@ class ImageClient:
         """调用 OpenAI Responses API 生成图片"""
         params = params or {}
         content = self._build_input(prompt, images, previous_response_id)
-
-        tool_config: dict[str, Any] = {"type": "image_generation"}
-        if params.get("size"):
-            tool_config["size"] = params["size"]
-        if params.get("quality"):
-            tool_config["quality"] = params["quality"]
-        if params.get("output_format"):
-            tool_config["output_format"] = params["output_format"]
+        tool_config = self._build_tool_config(params)
 
         create_kwargs: dict[str, Any] = {
             "model": "gpt-4.1",
@@ -87,21 +89,9 @@ class ImageClient:
         partial_images: int = 2,
     ):
         """流式生成图片，yield SSE 事件字典"""
-        import base64
-
         params = params or {}
         content = self._build_input(prompt, images, previous_response_id)
-
-        tool_config: dict[str, Any] = {
-            "type": "image_generation",
-            "partial_images": partial_images,
-        }
-        if params.get("size"):
-            tool_config["size"] = params["size"]
-        if params.get("quality"):
-            tool_config["quality"] = params["quality"]
-        if params.get("output_format"):
-            tool_config["output_format"] = params["output_format"]
+        tool_config = self._build_tool_config(params, partial_images=partial_images)
 
         create_kwargs: dict[str, Any] = {
             "model": "gpt-4.1",

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
+import { updateApiKey } from "../services/api";
 import type { AttachedFile } from "../types";
 
 export default function InputArea() {
@@ -225,7 +226,6 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      const { updateApiKey } = await import("../services/api");
       await updateApiKey(apiKey.trim());
       setMessage("API Key saved");
       setTimeout(onClose, 800);

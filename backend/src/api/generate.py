@@ -1,5 +1,6 @@
 # backend/src/api/generate.py
 import base64
+import json
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
@@ -30,27 +31,11 @@ class GenerateRequest(BaseModel):
     params: GenerateParams | None = None
 
 
-def _sessions(request: Request):
-    return request.app.state.sessions
-
-
-def _db(request: Request):
-    return request.app.state.db
-
-
-def _store(request: Request):
-    return request.app.state.store
-
-
-def _client(request: Request):
-    return request.app.state.client
-
-
 async def _resolve_previous_response_id(
     request: Request, session_id: str, fork_from: str | None
 ) -> str | None:
     """确定 previous_response_id：fork_from 优先，否则用会话 head"""
-    db = _db(request)
+    db = request.app.state.db
     if fork_from:
         conn = db.connection()
         cursor = await conn.execute(
@@ -61,7 +46,7 @@ async def _resolve_previous_response_id(
             raise HTTPException(status_code=404, detail="Fork source image not found")
         return row["response_id"]
 
-    sessions = _sessions(request)
+    sessions = request.app.state.sessions
     session = await sessions.get(session_id)
     return session.get("head_response_id") if session else None
 
@@ -77,20 +62,20 @@ async def _save_generated_image(
     params: GenerateParams,
 ) -> dict:
     """保存生成的图片到文件系统和数据库"""
-    db = _db(request)
-    store = _store(request)
-    sessions = _sessions(request)
+    db = request.app.state.db
+    store = request.app.state.store
+    sessions = request.app.state.sessions
 
     image_data = base64.b64decode(image_b64)
     file_path = store.save_image(session_id, image_data, params.output_format)
 
     conn = db.connection()
     cursor = await conn.execute(
-        "SELECT COUNT(*) as cnt FROM images WHERE session_id = ?",
+        "SELECT COALESCE(MAX(step), 0) + 1 as next_step FROM images WHERE session_id = ?",
         (session_id,),
     )
     row = await cursor.fetchone()
-    step = (row["cnt"] if row else 0) + 1
+    step = row["next_step"]
 
     img_id = f"img_{uuid.uuid4().hex[:12]}"
     relative_path = f"{session_id}/{file_path.name}"
@@ -128,7 +113,7 @@ async def generate(body: GenerateRequest, request: Request):
     if not api_key:
         raise HTTPException(status_code=400, detail="API key not configured")
 
-    sessions = _sessions(request)
+    sessions = request.app.state.sessions
     session = await sessions.get(body.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -140,11 +125,9 @@ async def generate(body: GenerateRequest, request: Request):
     params = body.params or GenerateParams()
     images = [img.model_dump(exclude_none=True) for img in body.images if img.type == "base64"]
 
-    client = _client(request)
+    client = request.app.state.client
 
     async def event_stream():
-        import json
-
         try:
             yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
 
