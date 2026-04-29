@@ -1,10 +1,13 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
-import { getSettings, updateSettings } from "../services/api";
 import type { AttachedFile } from "../types";
 
-export default function InputArea() {
+interface InputAreaProps {
+  onOpenSettings?: () => void;
+}
+
+export default function InputArea({ onOpenSettings }: InputAreaProps) {
   const { activeSessionId } = useSessionStore();
   const {
     isGenerating,
@@ -21,7 +24,6 @@ export default function InputArea() {
   } = useGenerationStore();
 
   const [prompt, setPrompt] = useState("");
-  const [showSettings, setShowSettings] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,10 +35,8 @@ export default function InputArea() {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
-
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) continue;
-
         const data = await fileToBase64(file);
         const attachment: AttachedFile = {
           id: crypto.randomUUID(),
@@ -77,135 +77,140 @@ export default function InputArea() {
     const el = textareaRef.current;
     if (el) {
       el.style.height = "auto";
-      el.style.height = Math.min(el.scrollHeight, 120) + "px";
+      el.style.height = Math.min(el.scrollHeight, 100) + "px";
     }
   };
 
   return (
-    <div className="border-t border-[#334155] bg-[#0f172a]">
-      {/* Error bar */}
+    <div
+      className="border-t flex flex-col gap-2"
+      style={{
+        background: "var(--bg)",
+        borderColor: "var(--border)",
+        padding: "12px 20px 14px",
+        transition: "background 0.3s, border-color 0.3s",
+      }}
+    >
       {error && (
-        <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between">
-          <span className="text-red-400 text-sm">{error}</span>
-          <button
-            onClick={clearError}
-            className="text-red-400 hover:text-red-300 cursor-pointer"
-          >
-            x
-          </button>
+        <div
+          className="flex items-center justify-between px-3 py-2 rounded-lg"
+          style={{ background: "rgba(181,51,51,0.08)", border: "1px solid rgba(181,51,51,0.2)" }}
+        >
+          <span className="text-sm" style={{ color: "var(--error)" }}>{error}</span>
+          <button onClick={clearError} className="cursor-pointer text-sm" style={{ color: "var(--error)" }}>x</button>
         </div>
       )}
 
-      {/* Fork indicator */}
       {pendingForkFrom && (
-        <div className="px-4 py-1.5 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between">
-          <span className="text-blue-400 text-xs">Forking from {pendingForkFrom.slice(0, 16)}...</span>
-          <button
-            onClick={() => setPendingForkFrom(null)}
-            className="text-blue-400 hover:text-blue-300 cursor-pointer text-xs"
-          >
-            Cancel
-          </button>
+        <div
+          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs"
+          style={{ background: "rgba(201,100,66,0.08)", border: "1px solid rgba(201,100,66,0.15)", color: "var(--accent)" }}
+        >
+          <span>Forking from {pendingForkFrom.slice(0, 16)}...</span>
+          <button onClick={() => setPendingForkFrom(null)} className="cursor-pointer text-xs" style={{ color: "var(--accent)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+          >Cancel</button>
         </div>
       )}
 
-      {/* Attachment preview area */}
       {attachments.length > 0 && (
-        <div className="px-4 pt-3 max-h-[40vh] overflow-y-auto">
-          <div className="flex flex-wrap gap-2">
-            {attachments.map((att) => (
-              <div
-                key={att.id}
-                className="relative group w-16 h-16 rounded-lg overflow-hidden border border-[#334155]"
-              >
-                <img
-                  src={att.preview_url}
-                  alt={att.name}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  onClick={() => removeAttachment(att.id)}
-                  className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {attachments.map((att) => (
+            <div key={att.id} className="relative flex-shrink-0 overflow-hidden border group"
+              style={{ width: 52, height: 52, borderRadius: "var(--radius-sm)", borderColor: "var(--border)", background: "var(--sand)" }}
+            >
+              <img src={att.preview_url} alt={att.name} className="w-full h-full object-cover" />
+              <button
+                onClick={() => removeAttachment(att.id)}
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                style={{ background: "rgba(20,20,19,0.6)", fontSize: 10 }}
+              >&times;</button>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Text input */}
-      <div className="px-4 py-2">
-        <textarea
-          ref={textareaRef}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onInput={handleTextareaInput}
-          placeholder={
-            activeSessionId
-              ? "Describe the image you want to generate... (Ctrl+Enter to send)"
-              : "Select or create a session first"
-          }
-          disabled={!activeSessionId}
-          rows={1}
-          className="w-full bg-[#1e293b] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] resize-none outline-none focus:border-[#3b82f6] transition-colors disabled:opacity-50"
-          style={{ minHeight: "40px", maxHeight: "120px" }}
-        />
-      </div>
-
-      {/* Action buttons */}
-      <div className="px-4 pb-3 flex items-center gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
+      <div className="flex gap-1 pb-0.5">
+        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
         <button
-          onClick={handleAttach}
-          disabled={isGenerating}
-          className="px-3 py-1.5 text-sm text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#1e293b] rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+          onClick={handleAttach} disabled={isGenerating}
+          className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+          style={{ color: "var(--muted)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
           title="Attach image"
         >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
           Attach
         </button>
-
-        <button
-          onClick={() => setShowSettings(true)}
-          className="px-3 py-1.5 text-sm text-[#94a3b8] hover:text-[#e2e8f0] hover:bg-[#1e293b] rounded-lg transition-colors cursor-pointer"
-          title="Settings"
-        >
-          Settings
-        </button>
-
-        <div className="flex-1" />
-
-        {isGenerating && (
+        {onOpenSettings && (
           <button
-            onClick={cancelGeneration}
-            className="px-4 py-1.5 text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg transition-colors cursor-pointer"
+            onClick={onOpenSettings}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors cursor-pointer"
+            style={{ color: "var(--muted)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
+            title="Settings"
           >
-            Cancel
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+            Settings
           </button>
         )}
-
-        <button
-          onClick={handleGenerate}
-          disabled={!activeSessionId || !prompt.trim() || isGenerating}
-          className="px-4 py-1.5 text-sm bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer font-medium"
-        >
-          Generate
-        </button>
+        <span className="flex-1" />
+        <span className="text-[11px] leading-6" style={{ color: "var(--faint)" }}>Ctrl+Enter to send</span>
       </div>
 
-      {showSettings && (
-        <SettingsDialog onClose={() => setShowSettings(false)} />
-      )}
+      <div className="flex gap-2 items-end">
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onInput={handleTextareaInput}
+            placeholder={activeSessionId ? "Describe the image you want to generate..." : "Select or create a session first"}
+            disabled={!activeSessionId}
+            rows={1}
+            className="w-full border outline-none resize-none transition-all"
+            style={{
+              padding: "9px 14px", background: "var(--input-bg)", borderColor: "var(--border)",
+              borderRadius: "var(--radius-md)", color: "var(--fg)", fontSize: "13.5px", lineHeight: 1.5,
+              minHeight: "40px", maxHeight: "100px",
+            }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(201,100,66,0.1)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
+          />
+        </div>
+        {isGenerating ? (
+          <button
+            onClick={cancelGeneration}
+            className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer"
+            style={{ padding: "9px 18px", background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.14)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
+          >Cancel</button>
+        ) : (
+          <button
+            onClick={handleGenerate}
+            disabled={!activeSessionId || !prompt.trim()}
+            className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ padding: "9px 22px", background: "var(--accent)", color: "#faf9f5" }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.background = "var(--accent-h)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(201,100,66,0.2)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--accent)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >Generate</button>
+        )}
+      </div>
     </div>
   );
 }
@@ -221,114 +226,4 @@ function fileToBase64(file: File): Promise<string> {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
-}
-
-function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
-  const [apiMode, setApiMode] = useState<"responses" | "images" | "chat">("chat");
-  const [modelName, setModelName] = useState("gpt-image-2");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    getSettings().then((s) => {
-      if (s.api_key) setApiKey(s.api_key);
-      if (s.base_url) setBaseUrl(s.base_url);
-      if (s.api_mode) setApiMode(s.api_mode);
-      if (s.model_name) setModelName(s.model_name);
-    });
-  }, []);
-
-  const handleSave = async () => {
-    if (!apiKey.trim()) return;
-    setSaving(true);
-    try {
-      await updateSettings({
-        api_key: apiKey.trim(),
-        ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
-        api_mode: apiMode,
-        model_name: modelName.trim(),
-      });
-      setMessage("Settings saved");
-      setTimeout(onClose, 800);
-    } catch (err) {
-      setMessage(`Error: ${err}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] rounded-lg border border-[#334155] p-6 w-[420px] shadow-xl max-h-[90vh] overflow-y-auto">
-        <h3 className="text-lg font-medium text-[#e2e8f0] mb-4">Settings</h3>
-
-        <label className="block text-sm text-[#94a3b8] mb-1">API Key</label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-..."
-          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-3"
-        />
-
-        <label className="block text-sm text-[#94a3b8] mb-1">API Base URL</label>
-        <input
-          type="text"
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://api.openai.com/v1"
-          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-2"
-        />
-        <div className="text-xs text-[#64748b] mb-3">留空则使用 OpenAI 默认地址</div>
-
-        <label className="block text-sm text-[#94a3b8] mb-1">API 模式</label>
-        <select
-          value={apiMode}
-          onChange={(e) => setApiMode(e.target.value as "responses" | "images" | "chat")}
-          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] outline-none focus:border-[#3b82f6] mb-2 cursor-pointer"
-        >
-          <option value="chat">Chat Completions（/v1/chat/completions，推荐）</option>
-          <option value="images">Images API（/v1/images/generations）</option>
-          <option value="responses">Responses API（OpenAI 原生，支持多轮编辑）</option>
-        </select>
-        <div className="text-xs text-[#64748b] mb-3">
-          第三方代理推荐 Chat Completions 或 Images API
-        </div>
-
-        <label className="block text-sm text-[#94a3b8] mb-1">模型名称</label>
-        <input
-          type="text"
-          value={modelName}
-          onChange={(e) => setModelName(e.target.value)}
-          placeholder="gpt-image-2"
-          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-2"
-        />
-        <div className="text-xs text-[#64748b] mb-4">
-          图像生成模型 ID，如 gpt-image-2、gemini-2.5-flash-image 等
-        </div>
-
-        {message && (
-          <div className="text-sm text-[#94a3b8] mb-3">{message}</div>
-        )}
-
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 text-sm text-[#94a3b8] hover:text-[#e2e8f0] rounded-lg transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!apiKey.trim() || saving}
-            className="px-4 py-1.5 text-sm bg-[#3b82f6] hover:bg-[#2563eb] text-white rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
