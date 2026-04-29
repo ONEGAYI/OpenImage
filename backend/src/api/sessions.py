@@ -1,5 +1,5 @@
 # backend/src/api/sessions.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -20,19 +20,19 @@ def _sessions(request) -> "SessionManager":
 
 
 @router.post("")
-async def create_session(body: SessionCreate, request):
+async def create_session(body: SessionCreate, request: Request):
     sm = _sessions(request)
     return await sm.create(body.name)
 
 
 @router.get("")
-async def list_sessions(request):
+async def list_sessions(request: Request):
     sm = _sessions(request)
     return await sm.list_all()
 
 
 @router.get("/{session_id}")
-async def get_session(session_id: str, request):
+async def get_session(session_id: str, request: Request):
     sm = _sessions(request)
     session = await sm.get(session_id)
     if not session:
@@ -41,7 +41,7 @@ async def get_session(session_id: str, request):
 
 
 @router.patch("/{session_id}")
-async def rename_session(session_id: str, body: SessionRename, request):
+async def rename_session(session_id: str, body: SessionRename, request: Request):
     sm = _sessions(request)
     session = await sm.get(session_id)
     if not session:
@@ -50,7 +50,7 @@ async def rename_session(session_id: str, body: SessionRename, request):
 
 
 @router.get("/{session_id}/images")
-async def get_session_images(session_id: str, request):
+async def get_session_images(session_id: str, request: Request):
     sm = _sessions(request)
     session = await sm.get(session_id)
     if not session:
@@ -66,7 +66,7 @@ async def get_session_images(session_id: str, request):
 
 
 @router.delete("/{session_id}")
-async def delete_session(session_id: str, request):
+async def delete_session(session_id: str, request: Request):
     sm = _sessions(request)
     session = await sm.get(session_id)
     if not session:
