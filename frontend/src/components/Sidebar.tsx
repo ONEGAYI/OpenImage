@@ -97,7 +97,7 @@ export default function Sidebar() {
       {/* Search */}
       <div className="px-4 py-2.5 border-b" style={{ borderColor: "var(--border-s)" }}>
         <input
-          type="text" placeholder="搜索会话..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          type="text" placeholder="Search sessions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full border rounded-lg text-[12.5px] outline-none transition-all"
           style={{ padding: "7px 12px", background: "var(--input-bg)", borderColor: "var(--border)", color: "var(--fg)" }}
           onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(201,100,66,0.12)"; }}

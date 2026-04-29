@@ -64,13 +64,14 @@ export default function Topbar({ onOpenSettings }: TopbarProps) {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="relative rounded-[14px] cursor-pointer border"
+          className="relative rounded-[14px] cursor-pointer border overflow-hidden"
           style={{
             width: 50,
             height: 28,
             background: "var(--sand)",
             borderColor: "var(--border)",
             transition: "background 0.3s",
+            padding: 0,
           }}
           title="Toggle theme"
         >

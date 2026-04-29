@@ -14,13 +14,13 @@ function App() {
       className="flex h-screen overflow-hidden"
       style={{ background: "var(--bg)", color: "var(--fg)" }}
     >
-      <Sidebar />
+      <div className="shrink-0"><Sidebar /></div>
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar onOpenSettings={() => setShowSettings(true)} />
         <Gallery />
         <InputArea onOpenSettings={() => setShowSettings(true)} />
       </div>
-      <DetailPanel />
+      <div className="shrink-0 overflow-hidden"><DetailPanel /></div>
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
     </div>
   );
