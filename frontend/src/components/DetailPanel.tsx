@@ -5,13 +5,12 @@ import { getImageFileUrl } from "../services/api";
 export default function DetailPanel() {
   const { images, selectedImageId } = useSessionStore();
   const { setPendingForkFrom } = useGenerationStore();
-
   const selectedImage = images.find((img) => img.id === selectedImageId);
 
   if (!selectedImage) {
     return (
-      <div className="w-[280px] min-w-[280px] bg-[#0f172a] border-l border-[#334155] flex items-center justify-center">
-        <span className="text-[#94a3b8] text-sm">Select an image</span>
+      <div className="flex items-center justify-center border-l" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", color: "var(--faint)", fontSize: 13 }}>
+        Select an image
       </div>
     );
   }
@@ -24,107 +23,43 @@ export default function DetailPanel() {
     a.click();
   };
 
-  const handleCopyPrompt = () => {
-    navigator.clipboard.writeText(selectedImage.prompt);
-  };
+  const handleCopyPrompt = () => { navigator.clipboard.writeText(selectedImage.prompt); };
+  const handleFork = () => { setPendingForkFrom(selectedImage.id); };
 
-  const handleFork = () => {
-    setPendingForkFrom(selectedImage.id);
-  };
+  const labelStyle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--faint)", marginBottom: 4 };
 
   return (
-    <div className="w-[280px] min-w-[280px] bg-[#0f172a] border-l border-[#334155] flex flex-col h-full overflow-y-auto">
-      {/* Image preview */}
-      <div className="p-3">
-        <img
-          src={getImageFileUrl(selectedImage.id)}
-          alt={`Step ${selectedImage.step}`}
-          className="w-full rounded-lg bg-[#1e293b]"
-        />
+    <div className="flex flex-col h-full overflow-y-auto border-l" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", transition: "background 0.3s, border-color 0.3s" }}>
+      <div className="p-4 border-b" style={{ borderColor: "var(--border-s)" }}>
+        <img src={getImageFileUrl(selectedImage.id)} alt={`Step ${selectedImage.step}`} className="w-full rounded-xl" style={{ background: "var(--sand)" }} />
       </div>
-
-      {/* Metadata */}
-      <div className="px-4 pb-3 space-y-3">
-        <div>
-          <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-            Step
-          </div>
-          <div className="text-sm text-[#e2e8f0]">{selectedImage.step}</div>
-        </div>
-
-        <div>
-          <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-            Prompt
-          </div>
-          <div className="text-sm text-[#94a3b8] leading-relaxed">
-            {selectedImage.prompt}
-          </div>
-        </div>
-
-        {selectedImage.revised_prompt && (
-          <div>
-            <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-              Revised Prompt
-            </div>
-            <div className="text-sm text-[#94a3b8] leading-relaxed">
-              {selectedImage.revised_prompt}
-            </div>
-          </div>
-        )}
-
+      <div className="p-4 flex flex-col gap-3.5 flex-1">
+        <div><div style={labelStyle}>Step</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{selectedImage.step}</div></div>
+        <div><div style={labelStyle}>Prompt</div><div className="text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>{selectedImage.prompt}</div></div>
+        {selectedImage.revised_prompt && <div><div style={labelStyle}>Revised Prompt</div><div className="text-[13px] leading-relaxed italic" style={{ color: "var(--muted)" }}>{selectedImage.revised_prompt}</div></div>}
         <div className="flex gap-4">
-          <div>
-            <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-              Size
-            </div>
-            <div className="text-sm text-[#e2e8f0]">{selectedImage.size}</div>
-          </div>
-          <div>
-            <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-              Quality
-            </div>
-            <div className="text-sm text-[#e2e8f0]">{selectedImage.quality}</div>
-          </div>
-          <div>
-            <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-              Format
-            </div>
-            <div className="text-sm text-[#e2e8f0]">
-              {selectedImage.output_format}
-            </div>
-          </div>
+          {[{ label: "Size", value: selectedImage.size }, { label: "Quality", value: selectedImage.quality }, { label: "Format", value: selectedImage.output_format }].map(({ label, value }) => (
+            <div key={label} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
+          ))}
         </div>
-
-        <div>
-          <div className="text-xs text-[#64748b] uppercase tracking-wide mb-1">
-            Created
-          </div>
-          <div className="text-sm text-[#e2e8f0]">
-            {new Date(selectedImage.created_at).toLocaleString()}
-          </div>
-        </div>
+        <div><div style={labelStyle}>Created</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{new Date(selectedImage.created_at).toLocaleString()}</div></div>
       </div>
-
-      {/* Actions */}
-      <div className="mt-auto px-4 pb-4 space-y-2">
-        <button
-          onClick={handleSave}
-          className="w-full px-3 py-2 text-sm bg-[#1e293b] hover:bg-[#334155] text-[#e2e8f0] rounded-lg transition-colors cursor-pointer"
-        >
-          Save Image
-        </button>
-        <button
-          onClick={handleCopyPrompt}
-          className="w-full px-3 py-2 text-sm bg-[#1e293b] hover:bg-[#334155] text-[#e2e8f0] rounded-lg transition-colors cursor-pointer"
-        >
-          Copy Prompt
-        </button>
-        <button
-          onClick={handleFork}
-          className="w-full px-3 py-2 text-sm bg-[#1e293b] hover:bg-[#334155] text-[#3b82f6] rounded-lg transition-colors cursor-pointer"
-        >
-          Fork from Here
-        </button>
+      <div className="p-4 border-t flex flex-col gap-2 mt-auto" style={{ borderColor: "var(--border-s)" }}>
+        <button onClick={handleSave} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
+          style={{ background: "var(--accent)", color: "#faf9f5" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+        >Save Image</button>
+        <button onClick={handleCopyPrompt} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+          style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+        >Copy Prompt</button>
+        <button onClick={handleFork} className="w-full py-2 px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+          style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+        >Fork from Here</button>
       </div>
     </div>
   );

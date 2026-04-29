@@ -8,6 +8,8 @@ interface SessionState {
   images: Image[];
   selectedImageId: string | null;
   loading: boolean;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
 
   fetchSessions: () => Promise<void>;
   selectSession: (id: string) => Promise<void>;
@@ -23,6 +25,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   images: [],
   selectedImageId: null,
   loading: false,
+  searchQuery: "",
+  setSearchQuery: (q: string) => set({ searchQuery: q }),
 
   fetchSessions: async () => {
     const sessions = await api.listSessions();
