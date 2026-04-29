@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from src.core.client import API_MODE_CHAT
+
 router = APIRouter(tags=["generate"])
 
 
@@ -31,24 +33,48 @@ class GenerateRequest(BaseModel):
     params: GenerateParams | None = None
 
 
-async def _resolve_previous_response_id(
+async def _resolve_previous(
     request: Request, session_id: str, fork_from: str | None
-) -> str | None:
-    """确定 previous_response_id：fork_from 优先，否则用会话 head"""
+) -> tuple[str | None, str | None]:
+    """解析上一步上下文：返回 (previous_response_id, history_image_b64)"""
     db = request.app.state.db
+    store = request.app.state.store
+
+    # fork_from：查指定图片的 response_id 和 file_path（一次查询）
     if fork_from:
         conn = db.connection()
         cursor = await conn.execute(
-            "SELECT response_id FROM images WHERE id = ?", (fork_from,)
+            "SELECT response_id, file_path FROM images WHERE id = ?", (fork_from,)
         )
         row = await cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Fork source image not found")
-        return row["response_id"]
 
+        response_id = row["response_id"]
+        img_b64 = _read_image_b64(store, row["file_path"])
+        return response_id, img_b64
+
+    # 无 fork：response_id 取 session head，history 取最新图片
     sessions = request.app.state.sessions
     session = await sessions.get(session_id)
-    return session.get("head_response_id") if session else None
+    response_id = session.get("head_response_id") if session else None
+
+    conn = db.connection()
+    cursor = await conn.execute(
+        "SELECT file_path FROM images WHERE session_id = ? ORDER BY step DESC LIMIT 1",
+        (session_id,),
+    )
+    row = await cursor.fetchone()
+    img_b64 = _read_image_b64(store, row["file_path"]) if row else None
+    return response_id, img_b64
+
+
+def _read_image_b64(store, relative_path: str) -> str | None:
+    """从磁盘读取图片文件并返回 base64"""
+    path = store.get_absolute_path(relative_path)
+    if not path.exists():
+        return None
+    return base64.b64encode(path.read_bytes()).decode()
 
 
 async def _save_generated_image(
@@ -118,7 +144,7 @@ async def generate(body: GenerateRequest, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    previous_response_id = await _resolve_previous_response_id(
+    previous_response_id, history_image_b64 = await _resolve_previous(
         request, body.session_id, body.fork_from
     )
 
@@ -126,6 +152,9 @@ async def generate(body: GenerateRequest, request: Request):
     images = [img.model_dump(exclude_none=True) for img in body.images if img.type == "base64"]
 
     client = request.app.state.client
+    history_images = [history_image_b64] if (
+        client.api_mode == API_MODE_CHAT and history_image_b64
+    ) else None
 
     async def event_stream():
         try:
@@ -136,6 +165,7 @@ async def generate(body: GenerateRequest, request: Request):
                 images=images,
                 previous_response_id=previous_response_id,
                 params=params.model_dump(),
+                history_images=history_images,
             )
 
             saved = await _save_generated_image(

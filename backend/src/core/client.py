@@ -36,9 +36,34 @@ class ImageClient:
         self._openai = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._http = httpx.AsyncClient(timeout=180)
         self._api_key = api_key
-        self._base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
+        # 确保 base_url 以 /v1 结尾（OpenAI 兼容 API 的标准路径前缀）
+        raw = (base_url or "https://api.openai.com/v1").rstrip("/")
+        if not raw.endswith("/v1"):
+            raw += "/v1"
+        self._base_url = raw
         self.api_mode = api_mode
         self.model_name = model_name
+
+    @staticmethod
+    def _check_response(resp: httpx.Response, endpoint: str) -> None:
+        """检查 HTTP 响应，提供详细错误信息"""
+        if resp.is_error:
+            raise ValueError(
+                f"{endpoint} 请求失败 (HTTP {resp.status_code}): "
+                f"{resp.text[:500] or '(空响应)'}"
+            )
+        if not resp.text:
+            raise ValueError(
+                f"{endpoint} 返回空响应 (HTTP {resp.status_code})"
+            )
+        ct = resp.headers.get("content-type", "")
+        if "json" not in ct and not resp.text.strip().startswith("{"):
+            raise ValueError(
+                f"{endpoint} 返回非 JSON 响应 (HTTP {resp.status_code}, "
+                f"Content-Type: {ct}), 这通常意味着 API Base URL 不正确。"
+                f"请确认 Base URL 包含正确的路径前缀（如 /v1）。"
+                f"响应前 200 字符: {resp.text[:200]!r}"
+            )
 
     @classmethod
     def from_settings(cls, settings: dict) -> "ImageClient | None":
@@ -133,7 +158,7 @@ class ImageClient:
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        resp.raise_for_status()
+        self._check_response(resp, "Images API")
         item = resp.json()["data"][0]
 
         image_b64 = item.get("b64_json", "")
@@ -151,15 +176,38 @@ class ImageClient:
 
     # ---- Chat Completions API (httpx) ----
 
+    def _build_chat_content(
+        self, prompt: str, images: list[dict], history_images: list[str] | None = None
+    ) -> list[dict]:
+        """构建 Chat Completions 的多模态 content 数组，图片在前文本在后"""
+        content: list[dict] = []
+        for b64 in (history_images or []):
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{b64}"},
+            })
+        for img in images:
+            if img.get("type") == "base64" and img.get("data"):
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{img.get('media_type', 'image/png')};base64,{img['data']}"
+                    },
+                })
+        content.append({"type": "text", "text": prompt})
+        return content
+
     async def _generate_via_chat(
         self,
         prompt: str,
         images: list[dict],
         params: dict[str, Any] | None = None,
+        history_images: list[str] | None = None,
     ) -> GenerateResult:
+        content = self._build_chat_content(prompt, images, history_images)
         payload: dict[str, Any] = {
             "model": self.model_name,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
         }
 
         resp = await self._http.post(
@@ -167,17 +215,19 @@ class ImageClient:
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        resp.raise_for_status()
-        content = resp.json()["choices"][0]["message"]["content"]
+        self._check_response(resp, "Chat API")
+        try:
+            text = resp.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError):
+            raise ValueError(f"Chat API 响应格式异常: {resp.text[:500]}")
 
-        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', content)
+        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', text)
         if not urls:
-            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', content)
+            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', text)
         if not urls:
-            urls = re.findall(r'(https?://\S+)', content)
-
+            urls = re.findall(r'(https?://\S+)', text)
         if not urls:
-            raise ValueError(f"未在响应中找到图片 URL，响应内容：{content[:300]}")
+            raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
 
         image_b64 = await self._download_as_b64(urls[0])
 
@@ -196,9 +246,12 @@ class ImageClient:
         images: list[dict],
         previous_response_id: str | None,
         params: dict[str, Any] | None = None,
+        history_images: list[str] | None = None,
     ) -> GenerateResult:
         if self.api_mode == API_MODE_CHAT:
-            return await self._generate_via_chat(prompt, images, params)
+            return await self._generate_via_chat(
+                prompt, images, params, history_images
+            )
         if self.api_mode == API_MODE_IMAGES:
             return await self._generate_via_images(prompt, images, params)
         return await self._generate_via_responses(
