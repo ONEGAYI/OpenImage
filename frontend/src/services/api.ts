@@ -139,9 +139,11 @@ export async function getSettings(): Promise<SettingsResponse> {
   return request("/api/settings");
 }
 
-export async function updateApiKey(apiKey: string): Promise<void> {
+export async function updateApiKey(apiKey: string, baseUrl?: string): Promise<void> {
+  const body: Record<string, string> = { api_key: apiKey };
+  if (baseUrl !== undefined) body.base_url = baseUrl;
   await request("/api/settings", {
     method: "PATCH",
-    body: JSON.stringify({ api_key: apiKey }),
+    body: JSON.stringify(body),
   });
 }

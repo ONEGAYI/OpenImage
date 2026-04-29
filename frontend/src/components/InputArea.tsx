@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
-import { updateApiKey } from "../services/api";
+import { getSettings, updateApiKey } from "../services/api";
 import type { AttachedFile } from "../types";
 
 export default function InputArea() {
@@ -219,15 +219,22 @@ function fileToBase64(file: File): Promise<string> {
 
 function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    getSettings().then((s) => {
+      if (s.base_url) setBaseUrl(s.base_url);
+    });
+  }, []);
 
   const handleSave = async () => {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      await updateApiKey(apiKey.trim());
-      setMessage("API Key saved");
+      await updateApiKey(apiKey.trim(), baseUrl.trim());
+      setMessage("Settings saved");
       setTimeout(onClose, 800);
     } catch (err) {
       setMessage(`Error: ${err}`);
@@ -247,8 +254,18 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="sk-..."
+          className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-3"
+        />
+
+        <label className="block text-sm text-[#94a3b8] mb-1">API Base URL</label>
+        <input
+          type="text"
+          value={baseUrl}
+          onChange={(e) => setBaseUrl(e.target.value)}
+          placeholder="https://api.openai.com/v1"
           className="w-full bg-[#0f172a] border border-[#334155] rounded-lg px-3 py-2 text-sm text-[#e2e8f0] placeholder-[#64748b] outline-none focus:border-[#3b82f6] mb-4"
         />
+        <div className="text-xs text-[#64748b] mb-4">留空则使用 OpenAI 默认地址，支持桥接服务地址</div>
 
         {message && (
           <div className="text-sm text-[#94a3b8] mb-3">{message}</div>

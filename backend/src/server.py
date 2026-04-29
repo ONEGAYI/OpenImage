@@ -32,8 +32,9 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         app.state.store = ImageStore(config)
 
         api_key = await db.get_setting("api_key")
-        app.state.client = ImageClient(api_key) if api_key else None
-        app.state.settings = {"api_key": api_key}
+        base_url = await db.get_setting("base_url")
+        app.state.client = ImageClient(api_key=api_key, base_url=base_url or None) if api_key else None
+        app.state.settings = {"api_key": api_key, "base_url": base_url}
 
         yield
         await db.close()

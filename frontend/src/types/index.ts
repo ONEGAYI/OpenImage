@@ -55,6 +55,7 @@ export interface GenerateCompleted {
 export interface SettingsResponse {
   api_key_set: boolean;
   api_key_preview: string | null;
+  base_url: string | null;
 }
 
 export interface AttachedFile {
