@@ -11,10 +11,42 @@ sessions_app = typer.Typer(help="会话管理")
 app.add_typer(sessions_app, name="sessions")
 console = Console()
 
+MAX_RETRIES = 3
+BASE_DELAY = 2
+NON_RETRYABLE = (KeyboardInterrupt, SystemExit)
+_NON_RETRYABLE_KEYWORDS = (
+    "401", "invalid_api_key", "authentication",
+    "403", "forbidden", "permission",
+    "400", "invalid_request", "invalid_image",
+)
+
 
 def _get_base_dir() -> Path:
     """获取数据目录，默认为当前工作目录"""
     return Path.cwd()
+
+
+def _is_retryable(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return not any(kw in msg for kw in _NON_RETRYABLE_KEYWORDS)
+
+
+async def _retry(coro_fn, label: str):
+    """带指数退避的重试执行器，失败时打印等待时间并自动重试"""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return await coro_fn()
+        except NON_RETRYABLE:
+            raise
+        except Exception as e:
+            if not _is_retryable(e) or attempt == MAX_RETRIES:
+                raise
+            delay = BASE_DELAY * (2 ** (attempt - 1))
+            console.print(
+                f"[yellow]  {label} 失败, "
+                f"{delay}s 后重试 ({attempt}/{MAX_RETRIES})...[/yellow]"
+            )
+            await asyncio.sleep(delay)
 
 
 @app.command()
@@ -25,6 +57,32 @@ def serve(port: int = 8765):
 
     console.print(f"[green]Starting OpenImage server on port {port}...[/green]")
     uvicorn.run(create_app(_get_base_dir()), host="127.0.0.1", port=port)
+
+
+async def _load_client(db):
+    """从数据库加载设置并创建 ImageClient，失败时退出"""
+    from src.core.client import ImageClient
+
+    api_key, base_url, api_mode, model_name = await asyncio.gather(
+        db.get_setting("api_key"),
+        db.get_setting("base_url"),
+        db.get_setting("api_mode"),
+        db.get_setting("model_name"),
+    )
+    if not api_key:
+        console.print("[red]API key not set. Run: openimage config set api_key <key>[/red]")
+        sys.exit(1)
+
+    client = ImageClient.from_settings({
+        "api_key": api_key,
+        "base_url": base_url,
+        "api_mode": api_mode,
+        "model_name": model_name,
+    })
+    if not client:
+        console.print("[red]Failed to initialize client[/red]")
+        sys.exit(1)
+    return client
 
 
 @app.command()
@@ -38,7 +96,6 @@ def generate(
     import base64
     from src.core.config import Config
     from src.core.database import Database
-    from src.core.client import ImageClient
 
     async def _run():
         config = Config(_get_base_dir())
@@ -46,25 +103,21 @@ def generate(
         db = Database(config)
         await db.initialize()
 
-        api_key = await db.get_setting("api_key")
-        if not api_key:
-            console.print("[red]API key not set. Run: openimage config set api_key <key>[/red]")
-            sys.exit(1)
-
-        client = ImageClient(api_key)
+        client = await _load_client(db)
         console.print(f"[yellow]Generating: {prompt}...[/yellow]")
 
-        result = await client.generate(
-            prompt=prompt,
-            images=[],
-            previous_response_id=None,
-            params={"size": size, "quality": quality, "output_format": "png"},
-        )
+        async def _do():
+            result = await client.generate(
+                prompt=prompt,
+                images=[],
+                previous_response_id=None,
+                params={"size": size, "quality": quality, "output_format": "png"},
+            )
+            image_data = base64.b64decode(result.image_b64)
+            Path(output).write_bytes(image_data)
+            console.print(f"[green]Saved to {output} ({len(image_data)} bytes)[/green]")
 
-        image_data = base64.b64decode(result.image_b64)
-        Path(output).write_bytes(image_data)
-        console.print(f"[green]Saved to {output} ({len(image_data)} bytes)[/green]")
-
+        await _retry(_do, "生成")
         await db.close()
 
     asyncio.run(_run())
@@ -82,7 +135,6 @@ def edit(
     import base64
     from src.core.config import Config
     from src.core.database import Database
-    from src.core.client import ImageClient
 
     async def _run():
         config = Config(_get_base_dir())
@@ -90,10 +142,7 @@ def edit(
         db = Database(config)
         await db.initialize()
 
-        api_key = await db.get_setting("api_key")
-        if not api_key:
-            console.print("[red]API key not set.[/red]")
-            sys.exit(1)
+        client = await _load_client(db)
 
         images = []
         for path in image:
@@ -103,20 +152,20 @@ def edit(
             media = f"image/{ext}" if ext != "jpg" else "image/jpeg"
             images.append({"type": "base64", "data": b64, "media_type": media})
 
-        client = ImageClient(api_key)
         console.print(f"[yellow]Editing with {len(images)} image(s)...[/yellow]")
 
-        result = await client.generate(
-            prompt=prompt,
-            images=images,
-            previous_response_id=None,
-            params={"size": size, "quality": quality, "output_format": "png"},
-        )
+        async def _do():
+            result = await client.generate(
+                prompt=prompt,
+                images=images,
+                previous_response_id=None,
+                params={"size": size, "quality": quality, "output_format": "png"},
+            )
+            out_data = base64.b64decode(result.image_b64)
+            Path(output).write_bytes(out_data)
+            console.print(f"[green]Saved to {output}[/green]")
 
-        out_data = base64.b64decode(result.image_b64)
-        Path(output).write_bytes(out_data)
-        console.print(f"[green]Saved to {output}[/green]")
-
+        await _retry(_do, "编辑")
         await db.close()
 
     asyncio.run(_run())
