@@ -62,6 +62,7 @@ export interface SettingsResponse {
   api_mode: "responses" | "images" | "chat";
   model_name: string;
   resolved_endpoint: string;
+  full_version: string;
 }
 
 export interface AttachedFile {

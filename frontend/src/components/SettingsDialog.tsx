@@ -9,6 +9,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [resolvedEndpoint, setResolvedEndpoint] = useState("");
+  const [fullVersion, setFullVersion] = useState("");
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -17,6 +18,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       if (s.api_mode) setApiMode(s.api_mode);
       if (s.model_name) setModelName(s.model_name);
       if (s.resolved_endpoint) setResolvedEndpoint(s.resolved_endpoint);
+      if (s.full_version) setFullVersion(s.full_version);
     });
   }, []);
 
@@ -117,6 +119,15 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="text-xs mb-4" style={{ color: "var(--faint)" }}>图像生成模型 ID，如 gpt-image-2、gemini-2.5-flash-image 等</div>
 
         {message && <div className="text-sm mb-3" style={{ color: "var(--muted)" }}>{message}</div>}
+
+        {fullVersion && (
+          <div
+            className="text-xs text-center mb-3 select-all"
+            style={{ color: "var(--faint)", fontFamily: "monospace" }}
+          >
+            {fullVersion}
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-1.5 text-sm rounded-lg transition-colors cursor-pointer" style={{ color: "var(--muted)" }}>
