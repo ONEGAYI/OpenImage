@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
+import { listen } from "@tauri-apps/api/event";
 import Sidebar from "./components/Sidebar";
 import Gallery from "./components/Gallery";
 import InputArea from "./components/InputArea";
 import DetailPanel from "./components/DetailPanel";
 import Topbar from "./components/Topbar";
 import SettingsDialog from "./components/SettingsDialog";
-import { waitForBackend } from "./services/api";
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -13,9 +13,19 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    waitForBackend()
-      .then(() => setReady(true))
-      .catch((err) => setError(err.message));
+    const timeout = setTimeout(() => {
+      setError("Backend failed to start within 30 seconds");
+    }, 30000);
+
+    const unlisten = listen("backend-ready", () => {
+      clearTimeout(timeout);
+      setReady(true);
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+      clearTimeout(timeout);
+    };
   }, []);
 
   if (error) {

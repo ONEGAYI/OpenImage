@@ -53,7 +53,7 @@ def build_tauri():
     print("=== Building Tauri app ===")
     subprocess.run(
         ["npm", "run", "tauri", "build"],
-        cwd=FRONTEND, check=True,
+        cwd=FRONTEND, check=True, shell=True,
     )
 
 

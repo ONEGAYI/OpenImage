@@ -97,6 +97,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app_handle, event| match event {
             RunEvent::Exit | RunEvent::ExitRequested { .. } => {
+                // Kill CommandChild handle (bootloader process)
                 if let Some(backend) = app_handle.try_state::<Backend>() {
                     if let Ok(mut guard) = backend.0.lock() {
                         if let Some(child) = guard.take() {
@@ -104,6 +105,12 @@ pub fn run() {
                         }
                     }
                 }
+                // PyInstaller onefile creates bootloader + Python subprocess;
+                // child.kill() only hits the bootloader — taskkill /T cleans the tree.
+                #[cfg(target_os = "windows")]
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/F", "/T", "/IM", "openimage-backend.exe"])
+                    .spawn();
             }
             _ => {}
         });
