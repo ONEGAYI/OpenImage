@@ -12,7 +12,7 @@ def client() -> ImageClient:
 
 def test_build_text_only_input(client: ImageClient):
     """纯文本 prompt 应构建为 input_text 消息"""
-    messages = client._build_input("画一只猫", [], None)
+    messages = client._build_responses_input("画一只猫", [])
     assert len(messages) == 1
     assert messages[0]["type"] == "input_text"
     assert messages[0]["text"] == "画一只猫"
@@ -23,7 +23,7 @@ def test_build_input_with_base64_images(client: ImageClient):
     images = [
         {"type": "base64", "data": "abc123", "media_type": "image/png"},
     ]
-    messages = client._build_input("参考这张图", images, None)
+    messages = client._build_responses_input("参考这张图", images)
     assert len(messages) == 2
     assert messages[0]["type"] == "input_text"
     assert messages[1]["type"] == "input_image"
@@ -36,7 +36,7 @@ def test_build_input_with_multiple_images(client: ImageClient):
         {"type": "base64", "data": "img1", "media_type": "image/png"},
         {"type": "base64", "data": "img2", "media_type": "image/jpeg"},
     ]
-    messages = client._build_input("融合", images, None)
+    messages = client._build_responses_input("融合", images)
     assert len(messages) == 3  # 1 text + 2 images
 
 
@@ -59,7 +59,7 @@ async def test_generate_calls_openai(client: ImageClient):
         mock_instance.responses = MagicMock()
         mock_instance.responses.create = AsyncMock(return_value=mock_response)
 
-        client._client = mock_instance
+        client._openai = mock_instance
         result = await client.generate(
             prompt="画一只猫",
             images=[],
