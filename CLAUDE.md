@@ -21,6 +21,7 @@ OpenImage 是一个桌面端 AI 图片生成工具，基于 OpenAI gpt-image-2 �
 
 ```
 .
+├── CHANGELOG.md                   # 变更日志（Keep a Changelog 格式）
 ├── backend/
 │   ├── src/
 │   │   ├── api/                    # FastAPI 路由层
@@ -62,7 +63,7 @@ OpenImage 是一个桌面端 AI 图片生成工具，基于 OpenAI gpt-image-2 �
 │   │   ├── hooks/
 │   │   │   └── useTheme.ts         # 浅色/深色主题切换 hook
 │   │   ├── services/
-│   │   │   └── api.ts              # HTTP + SSE 通信层，含 waitForBackend 加载门控
+│   │   │   └── api.ts              # HTTP + SSE 通信层
 │   │   ├── stores/                 # Zustand 状态管理
 │   │   │   ├── sessionStore.ts     # 会话 + 图片多选状态（selectedImageIds[]）
 │   │   │   └── generationStore.ts  # 生成流程状态（附件、中断、完成后刷新）
@@ -76,6 +77,7 @@ OpenImage 是一个桌面端 AI 图片生成工具，基于 OpenAI gpt-image-2 �
 │   │   ├── src/lib.rs              # Rust sidecar 管理（启动/健康检查/清理后端进程）
 │   │   ├── binaries/               # sidecar 二进制（gitignored，构建时生成）
 │   │   ├── capabilities/default.json  # sidecar 执行权限
+│   │   ├── windows/hooks.nsh       # NSIS 安装/卸载钩子（清理后端进程）
 │   │   └── tauri.conf.json         # 窗口 1280×800, externalBin, 版本号
 │   ├── vite.config.ts              # Vite 配置（代理 /api → 后端 8765）
 │   └── package.json                # npm scripts（含 bump 命令）
