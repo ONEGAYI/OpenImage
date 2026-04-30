@@ -5,6 +5,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.0.1] - 2026-04-30
+
+### 新功能
+
+- **版本信息全链路展示**：CLI `--version`/`-v` 显示版本号；`/api/settings` 返回 `full_version` 字段（含构建时间戳）；前端设置页面底部展示版本号和打包时间；`build.py` 构建时自动生成 `build_info.py` 注入时间戳；`bump` 脚本同步更新 `APP_VERSION` 常量
+- **纯 Vite 开发模式支持**：`App.tsx` 自动检测运行环境，浏览器环境下通过 HTTP 轮询检测后端就绪状态，无需 Tauri 运行时即可进行前端开发
+- **NSIS 卸载数据保留**：卸载时询问用户是否保留用户数据（图片、设置等），保留的数据在重新安装后自动恢复
+
+### Bug 修复
+
+- **消除启动白屏**：后端启动逻辑从同步阻塞重构为异步 `tauri::async_runtime::spawn`，应用启动时不再出现长时间白屏
+- **消除黑框闪动**：Windows 环境下启动/关闭时的 `taskkill` 命令添加 `CREATE_NO_WINDOW` 标志，消除控制台黑框闪过
+
+### 其他改进
+
+- CORS 配置改为正则匹配，兼容开发环境任意端口（`localhost:\d+`）
+- API 基础 URL 集中管理：`api.ts` 导出 `BASE_URL` 常量，消除多处硬编码 URL 重复
+- 代码清理：进程名常量化、自解释注释移除
+
 ## [1.0.0] - 2026-04-30
 
 ### Added
@@ -64,4 +83,6 @@
 - 版本号统一管理 `scripts/bump.mjs`：5 文件同步（pyproject.toml、server.py、package.json、Cargo.toml、tauri.conf.json），支持 `patch/minor/major` 语义化递增
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
+<!-- 变更链接 -->
+[1.0.1]: https://github.com/user/OpenImage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/user/OpenImage/releases/tag/v1.0.0
