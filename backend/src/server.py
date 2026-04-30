@@ -17,6 +17,14 @@ from src.api import generate as generate_api
 from src.api import images as images_api
 from src.api import settings as settings_api
 
+try:
+    from src.build_info import BUILD_TIMESTAMP
+except ImportError:
+    BUILD_TIMESTAMP = None
+
+APP_VERSION = "1.0.0"
+FULL_VERSION = f"v{APP_VERSION}-{BUILD_TIMESTAMP}" if BUILD_TIMESTAMP else f"v{APP_VERSION}-dev"
+
 
 def create_app(base_dir: Path | None = None) -> FastAPI:
     config = Config(base_dir=base_dir)
@@ -39,7 +47,8 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         yield
         await db.close()
 
-    app = FastAPI(title="OpenImage", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="OpenImage", version=APP_VERSION, lifespan=lifespan)
+    app.state.full_version = FULL_VERSION
 
     @app.middleware("http")
     async def add_corp_header(request: Request, call_next):

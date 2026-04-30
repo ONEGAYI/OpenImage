@@ -16,6 +16,9 @@ frontend/src-tauri/binaries/
 backend/dist/
 backend/build/
 
+# Build info (generated at build time)
+backend/src/build_info.py
+
 # IDE
 .vscode/
 .idea/
