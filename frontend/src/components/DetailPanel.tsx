@@ -2,13 +2,16 @@ import { useState } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl, deleteImages } from "../services/api";
-import type { Image } from "../types";
+import MaskEditor from "./MaskEditor";
+import type { Image, MaskImageSource } from "../types";
 
 export default function DetailPanel() {
   const { images, selectedImageIds, activeSessionId, selectSession, fetchSessions, clearSelection } = useSessionStore();
   const { setPendingForkFrom } = useGenerationStore();
   const [deleting, setDeleting] = useState(false);
   const [viewingImage, setViewingImage] = useState<Image | null>(null);
+  const [buttonPage, setButtonPage] = useState(0);
+  const [editingMask, setEditingMask] = useState<MaskImageSource | null>(null);
 
   const selectedImages = images.filter((img) => selectedImageIds.includes(img.id));
   const isSingle = selectedImages.length === 1;
@@ -129,61 +132,140 @@ export default function DetailPanel() {
         )}
       </div>
 
-      {/* Actions */}
-      <div className="border-t flex flex-col gap-2 mt-auto" style={{ padding: 16, borderColor: "var(--border-s)", boxSizing: "border-box" }}>
-        {isSingle ? (
-          <>
-            <button onClick={() => setViewingImage(singleImage!)} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
-              style={{ background: "var(--accent)", color: "#faf9f5" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-            >View</button>
-            <button onClick={handleSave} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
-              style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-            >Save Image</button>
-            <button onClick={handleRemove} disabled={deleting} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none disabled:opacity-50"
-              style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(181,51,51,0.08)"; }}
-            >{deleting ? "Removing..." : "Remove"}</button>
-            <button onClick={handleCopyPrompt} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
-              style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-            >Copy Prompt</button>
-            <button onClick={handleFork} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
-              style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-            >Fork from Here</button>
-          </>
-        ) : (
-          <>
-            <button onClick={handleRemove} disabled={deleting} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none disabled:opacity-50"
-              style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(181,51,51,0.08)"; }}
-            >{deleting ? "Removing..." : "Remove Selected"}</button>
-            <button onClick={handleSaveAll} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
-              style={{ background: "var(--accent)", color: "#faf9f5" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-            >Save All</button>
-            <button onClick={handleCopyPrompts} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
-              style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-            >Copy Prompts</button>
-            <button onClick={handleForkLast} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
-              style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-            >Fork from Last</button>
-          </>
-        )}
+      {/* Actions — 翻页式 */}
+      <div
+        className="border-t flex flex-col gap-2 mt-auto"
+        style={{ padding: 16, borderColor: "var(--border-s)", boxSizing: "border-box" }}
+        onWheel={(e) => {
+          e.deltaY > 0 ? setButtonPage((p) => Math.min(1, p + 1)) : setButtonPage((p) => Math.max(0, p - 1));
+        }}
+      >
+        <div style={{ overflow: "hidden", position: "relative" }}>
+          <div
+            style={{
+              display: "flex",
+              transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+              transform: `translateX(-${buttonPage * 100}%)`,
+            }}
+          >
+            {/* 第一页 */}
+            <div style={{ minWidth: "100%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {isSingle ? (
+                <>
+                  <button onClick={() => setViewingImage(singleImage!)} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
+                    style={{ background: "var(--accent)", color: "#faf9f5" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+                  >View</button>
+                  <button onClick={handleSave} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                    style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >Save Image</button>
+                  <button onClick={handleRemove} disabled={deleting} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none disabled:opacity-50"
+                    style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
+                  >{deleting ? "Removing..." : "Remove"}</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={handleRemove} disabled={deleting} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none disabled:opacity-50"
+                    style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
+                  >{deleting ? "Removing..." : "Remove Selected"}</button>
+                  <button onClick={handleSaveAll} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
+                    style={{ background: "var(--accent)", color: "#faf9f5" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+                  >Save All</button>
+                </>
+              )}
+            </div>
+
+            {/* 第二页 */}
+            <div style={{ minWidth: "100%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+              {isSingle ? (
+                <>
+                  <button onClick={handleCopyPrompt} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                    style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >Copy Prompt</button>
+                  <button onClick={handleFork} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                    style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >Fork from Here</button>
+                  <button onClick={() => setEditingMask({ type: "generated", imageId: singleImage!.id })} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
+                    style={{ background: "var(--accent)", color: "#faf9f5" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
+                  >Inpaint</button>
+                </>
+              ) : (
+                <>
+                  <button onClick={handleCopyPrompts} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                    style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >Copy Prompts</button>
+                  <button onClick={handleForkLast} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                    style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >Fork from Last</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 页码指示器 */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
+          {[0, 1].map((p) => (
+            <button
+              key={p}
+              onClick={() => setButtonPage(p)}
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: buttonPage === p ? "var(--accent)" : "var(--border)",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            />
+          ))}
+        </div>
       </div>
+
+      {/* MaskEditor Overlay */}
+      {editingMask && activeSessionId && (
+        <MaskEditor
+          source={editingMask}
+          onClose={() => setEditingMask(null)}
+          onGenerate={(maskB64, prompt) => {
+            import("../services/api").then(({ inpaintImage }) => {
+              const req = editingMask.type === "generated"
+                ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
+                : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
+              inpaintImage(
+                req,
+                () => {
+                  setEditingMask(null);
+                  Promise.all([fetchSessions(), selectSession(activeSessionId)]);
+                },
+                (code, msg) => {
+                  console.error("Inpaint failed:", code, msg);
+                }
+              );
+            });
+          }}
+        />
+      )}
 
       {/* Full-resolution viewer overlay */}
       {viewingImage && (
