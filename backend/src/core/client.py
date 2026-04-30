@@ -244,6 +244,173 @@ class ImageClient:
 
     # ---- 统一入口 ----
 
+    async def _generate_inpaint(
+        self,
+        prompt: str,
+        source_image_b64: str,
+        mask_b64: str,
+        params: dict[str, Any] | None = None,
+    ) -> GenerateResult:
+        """根据 API 模式路由 inpainting 请求"""
+        if self.api_mode == API_MODE_IMAGES:
+            return await self._inpaint_via_images(prompt, source_image_b64, mask_b64, params)
+        if self.api_mode == API_MODE_CHAT:
+            return await self._inpaint_via_chat(prompt, source_image_b64, mask_b64, params)
+        return await self._inpaint_via_responses(prompt, source_image_b64, mask_b64, params)
+
+    async def _inpaint_via_images(
+        self,
+        prompt: str,
+        source_image_b64: str,
+        mask_b64: str,
+        params: dict[str, Any] | None = None,
+    ) -> GenerateResult:
+        """Images API 原生 inpainting: POST /v1/images/edits"""
+        source_bytes = base64.b64decode(source_image_b64)
+        mask_bytes = base64.b64decode(mask_b64)
+
+        files = {
+            "image": ("source.png", source_bytes, "image/png"),
+            "mask": ("mask.png", mask_bytes, "image/png"),
+        }
+        data = {
+            "prompt": prompt,
+            "model": self.model_name,
+            "n": "1",
+            "response_format": "b64_json",
+        }
+        extra_params = self._extract_params(params or {})
+        data.update(extra_params)
+
+        resp = await self._http.post(
+            f"{self._base_url}/images/edits",
+            data=data,
+            files=files,
+        )
+        self._check_response(resp, "Images Edits API")
+        item = resp.json()["data"][0]
+
+        image_b64 = item.get("b64_json", "")
+        if not image_b64:
+            url = item.get("url", "")
+            if url:
+                image_b64 = await self._download_as_b64(url)
+
+        return GenerateResult(
+            response_id=self._make_response_id(),
+            image_b64=image_b64,
+            revised_prompt=item.get("revised_prompt"),
+            total_tokens=0,
+        )
+
+    async def _inpaint_via_responses(
+        self,
+        prompt: str,
+        source_image_b64: str,
+        mask_b64: str,
+        params: dict[str, Any] | None = None,
+    ) -> GenerateResult:
+        """Responses API inpainting: 原图 + 蒙版作为 input_image + 元 prompt"""
+        content = [
+            {
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{source_image_b64}",
+            },
+            {
+                "type": "input_image",
+                "image_url": f"data:image/png;base64,{mask_b64}",
+            },
+            {
+                "type": "input_text",
+                "text": f"[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area. {prompt}",
+            },
+        ]
+
+        tool_config: dict[str, Any] = {
+            "type": "image_generation",
+            **self._extract_params(params or {}),
+        }
+
+        response = await self._openai.responses.create(
+            model=self.model_name,
+            input=[{"role": "user", "content": content}],
+            tools=[tool_config],
+        )
+
+        image_b64 = ""
+        revised_prompt = None
+        for output in response.output:
+            if output.type == "image_generation_call":
+                image_b64 = output.result
+                revised_prompt = getattr(output, "revised_prompt", None)
+
+        return GenerateResult(
+            response_id=response.id,
+            image_b64=image_b64,
+            revised_prompt=revised_prompt,
+            total_tokens=response.usage.total_tokens if response.usage else 0,
+        )
+
+    async def _inpaint_via_chat(
+        self,
+        prompt: str,
+        source_image_b64: str,
+        mask_b64: str,
+        params: dict[str, Any] | None = None,
+    ) -> GenerateResult:
+        """Chat API inpainting: 原图 + 蒙版作为 image_url + 元 prompt"""
+        content = [
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{source_image_b64}"},
+            },
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/png;base64,{mask_b64}"},
+            },
+            {
+                "type": "text",
+                "text": f"[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area. {prompt}",
+            },
+        ]
+
+        payload: dict[str, Any] = {
+            "model": self.model_name,
+            "messages": [{"role": "user", "content": content}],
+            "tools": [{
+                "type": "image_generation",
+                **self._extract_params(params or {}),
+            }],
+        }
+
+        resp = await self._http.post(
+            f"{self._base_url}/chat/completions",
+            json=payload,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+        )
+        self._check_response(resp, "Chat Inpaint API")
+        try:
+            text = resp.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError):
+            raise ValueError(f"Chat Inpaint API 响应格式异常: {resp.text[:500]}")
+
+        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', text)
+        if not urls:
+            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', text)
+        if not urls:
+            urls = re.findall(r'(https?://\S+)', text)
+        if not urls:
+            raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
+
+        image_b64 = await self._download_as_b64(urls[0])
+
+        return GenerateResult(
+            response_id=self._make_response_id(),
+            image_b64=image_b64,
+            revised_prompt=None,
+            total_tokens=0,
+        )
+
     async def generate(
         self,
         prompt: str,
@@ -251,7 +418,15 @@ class ImageClient:
         previous_response_id: str | None,
         params: dict[str, Any] | None = None,
         history_images: list[str] | None = None,
+        mask_b64: str | None = None,
+        source_image_b64: str | None = None,
     ) -> GenerateResult:
+        # Inpainting 路由
+        if mask_b64 and source_image_b64:
+            return await self._generate_inpaint(
+                prompt, source_image_b64, mask_b64, params
+            )
+        # 原有路由
         if self.api_mode == API_MODE_CHAT:
             return await self._generate_via_chat(
                 prompt, images, params, history_images
