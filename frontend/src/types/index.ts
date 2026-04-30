@@ -65,6 +65,21 @@ export interface SettingsResponse {
   full_version: string;
 }
 
+export interface InpaintRequest {
+  session_id: string;
+  prompt: string;
+  source_image_id?: string;
+  source_image_b64?: string;
+  mask_b64: string;
+  params?: GenerateParams;
+}
+
+export type InpaintCompleted = GenerateCompleted;
+
+export type MaskImageSource =
+  | { type: "generated"; imageId: string }
+  | { type: "attachment"; attachmentId: string; imageB64: string };
+
 export interface AttachedFile {
   id: string;
   name: string;
