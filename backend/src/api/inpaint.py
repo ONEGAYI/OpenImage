@@ -3,8 +3,6 @@ import json
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from PIL import Image
-from io import BytesIO
 from pydantic import BaseModel
 
 from src.api.generate import GenerateParams, _read_image_b64, _save_generated_image
@@ -21,11 +19,10 @@ class InpaintRequest(BaseModel):
     params: GenerateParams | None = None
 
 
-def _decode_and_validate_mask(mask_b64: str) -> None:
-    """校验 mask_b64 是否为合法图片"""
+def _validate_mask_b64(mask_b64: str) -> None:
+    """校验 mask_b64 是否为合法 base64"""
     try:
-        data = base64.b64decode(mask_b64)
-        Image.open(BytesIO(data))
+        base64.b64decode(mask_b64, validate=True)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid mask image")
 
@@ -49,7 +46,7 @@ async def inpaint(body: InpaintRequest, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    _decode_and_validate_mask(body.mask_b64)
+    _validate_mask_b64(body.mask_b64)
 
     # 获取原图 base64
     if body.source_image_id:

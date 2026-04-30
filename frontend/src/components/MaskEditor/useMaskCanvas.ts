@@ -280,7 +280,7 @@ export function useMaskCanvas(
     []
   );
 
-  // 导出蒙版为透明 PNG base64
+  // 导出蒙版为透明 PNG base64（有绘制内容 → 白色不透明，未绘制 → 透明）
   const exportMask = useCallback((): string | null => {
     const maskC = maskCanvasRef.current;
     if (!maskC || !state.hasMask) return null;
@@ -290,19 +290,10 @@ export function useMaskCanvas(
     output.height = maskC.height;
     const ctx = output.getContext("2d")!;
 
-    const maskCtx = maskC.getContext("2d")!;
-    const imgData = maskCtx.getImageData(0, 0, maskC.width, maskC.height);
-
-    // 有绘制内容的区域为白色不透明，未绘制区域为透明
-    const outData = ctx.createImageData(maskC.width, maskC.height);
-    for (let i = 0; i < imgData.data.length; i += 4) {
-      const alpha = imgData.data[i + 3];
-      outData.data[i] = 255;
-      outData.data[i + 1] = 255;
-      outData.data[i + 2] = 255;
-      outData.data[i + 3] = alpha;
-    }
-    ctx.putImageData(outData, 0, 0);
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, output.width, output.height);
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.drawImage(maskC, 0, 0);
 
     const dataUrl = output.toDataURL("image/png");
     return dataUrl.split(",")[1];

@@ -8,8 +8,9 @@ interface MaskCanvasProps {
 
 export default function MaskCanvas({ maskCanvasHook, canvasRef }: MaskCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const hookRef = useRef(maskCanvasHook);
+  hookRef.current = maskCanvasHook;
 
-  // 调整 canvas 尺寸匹配容器
   useEffect(() => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -19,11 +20,11 @@ export default function MaskCanvas({ maskCanvasHook, canvasRef }: MaskCanvasProp
       const { width, height } = container.getBoundingClientRect();
       canvas.width = width;
       canvas.height = height;
-      maskCanvasHook.renderOverlay();
+      hookRef.current.renderOverlay();
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [maskCanvasHook, canvasRef]);
+  }, [canvasRef]);
 
   return (
     <div

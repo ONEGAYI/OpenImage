@@ -22,12 +22,16 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
       ? getImageFileUrl(source.imageId)
       : `data:image/png;base64,${source.imageB64}`;
 
-  // 加载图片元素
+  const onGenerateRef = useRef(onGenerate);
+  onGenerateRef.current = onGenerate;
+
   useEffect(() => {
+    let cancelled = false;
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => setImageEl(img);
+    img.onload = () => { if (!cancelled) setImageEl(img); };
     img.src = imageUrl;
+    return () => { cancelled = true; };
   }, [imageUrl]);
 
   const hook = useMaskCanvas(canvasRef, imageEl);
@@ -35,8 +39,8 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
   const handleGenerate = useCallback(() => {
     const maskB64 = hook.exportMask();
     if (!maskB64 || !prompt.trim()) return;
-    onGenerate(maskB64, prompt.trim());
-  }, [hook, prompt, onGenerate]);
+    onGenerateRef.current(maskB64, prompt.trim());
+  }, [hook.exportMask, prompt]);
 
   const sourceLabel =
     source.type === "generated"

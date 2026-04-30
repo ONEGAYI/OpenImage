@@ -15,6 +15,7 @@ API_MODE_CHAT = "chat"
 DEFAULT_API_MODE = API_MODE_RESPONSES
 DEFAULT_MODEL_NAME = "gpt-image-2"
 _PARAM_KEYS = ("size", "quality", "output_format")
+_INPAINT_META_PROMPT = "[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area."
 
 
 @dataclass
@@ -84,6 +85,15 @@ class ImageClient:
         resp = await self._http.get(url)
         resp.raise_for_status()
         return base64.b64encode(resp.content).decode()
+
+    @staticmethod
+    def _extract_image_urls(text: str) -> list[str]:
+        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', text)
+        if not urls:
+            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', text)
+        if not urls:
+            urls = re.findall(r'(https?://\S+)', text)
+        return urls
 
     def _make_response_id(self) -> str:
         return f"img_{uuid.uuid4().hex[:16]}"
@@ -225,11 +235,7 @@ class ImageClient:
         except (KeyError, IndexError):
             raise ValueError(f"Chat API 响应格式异常: {resp.text[:500]}")
 
-        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', text)
-        if not urls:
-            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', text)
-        if not urls:
-            urls = re.findall(r'(https?://\S+)', text)
+        urls = self._extract_image_urls(text)
         if not urls:
             raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
 
@@ -322,7 +328,7 @@ class ImageClient:
             },
             {
                 "type": "input_text",
-                "text": f"[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area. {prompt}",
+                "text": f"{_INPAINT_META_PROMPT} {prompt}",
             },
         ]
 
@@ -370,7 +376,7 @@ class ImageClient:
             },
             {
                 "type": "text",
-                "text": f"[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area. {prompt}",
+                "text": f"{_INPAINT_META_PROMPT} {prompt}",
             },
         ]
 
@@ -394,11 +400,7 @@ class ImageClient:
         except (KeyError, IndexError):
             raise ValueError(f"Chat Inpaint API 响应格式异常: {resp.text[:500]}")
 
-        urls = re.findall(r'!\[.*?\]\((https?://[^)]+)\)', text)
-        if not urls:
-            urls = re.findall(r'(https?://\S+\.(?:png|jpg|jpeg|webp))', text)
-        if not urls:
-            urls = re.findall(r'(https?://\S+)', text)
+        urls = self._extract_image_urls(text)
         if not urls:
             raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
 

@@ -80,20 +80,17 @@ export async function deleteImages(ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => deleteImage(id)));
 }
 
-// --- Generate (SSE) ---
+// --- SSE helpers ---
 
-export function generateImage(
-  req: GenerateRequest,
-  onPartial: (index: number, b64: string) => void,
-  onCompleted: (data: GenerateCompleted) => void,
-  onError: (code: string, message: string) => void
-): AbortController {
+type SSEEventHandler = (event: string, data: unknown) => void;
+
+function connectSSE(url: string, body: unknown, handler: SSEEventHandler): AbortController {
   const controller = new AbortController();
 
-  fetch(`${BASE_URL}/api/generate`, {
+  fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
+    body: JSON.stringify(body),
     signal: controller.signal,
   })
     .then(async (res) => {
@@ -117,14 +114,7 @@ export function generateImage(
             currentEvent = line.slice(7).trim();
           } else if (line.startsWith("data: ")) {
             try {
-              const data = JSON.parse(line.slice(6));
-              if (currentEvent === "partial_image") {
-                onPartial(data.index, data.b64_json);
-              } else if (currentEvent === "completed") {
-                onCompleted(data);
-              } else if (currentEvent === "error") {
-                onError(data.code, data.message);
-              }
+              handler(currentEvent, JSON.parse(line.slice(6)));
             } catch {
               // skip malformed JSON
             }
@@ -134,11 +124,27 @@ export function generateImage(
     })
     .catch((err) => {
       if (err.name !== "AbortError") {
-        onError("network_error", err.message);
+        handler("network_error", { code: "network_error", message: err.message });
       }
     });
 
   return controller;
+}
+
+// --- Generate (SSE) ---
+
+export function generateImage(
+  req: GenerateRequest,
+  onPartial: (index: number, b64: string) => void,
+  onCompleted: (data: GenerateCompleted) => void,
+  onError: (code: string, message: string) => void
+): AbortController {
+  return connectSSE(`${BASE_URL}/api/generate`, req, (event, data) => {
+    if (event === "partial_image") onPartial((data as { index: number; b64_json: string }).index, (data as { index: number; b64_json: string }).b64_json);
+    else if (event === "completed") onCompleted(data as GenerateCompleted);
+    else if (event === "error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
+    else if (event === "network_error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
+  });
 }
 
 // --- Inpaint (SSE) ---
@@ -148,55 +154,10 @@ export function inpaintImage(
   onCompleted: (data: InpaintCompleted) => void,
   onError: (code: string, message: string) => void
 ): AbortController {
-  const controller = new AbortController();
-
-  fetch(`${BASE_URL}/api/inpaint`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(req),
-    signal: controller.signal,
-  })
-    .then(async (res) => {
-      const reader = res.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let currentEvent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("event: ")) {
-            currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (currentEvent === "completed") {
-                onCompleted(data);
-              } else if (currentEvent === "error") {
-                onError(data.code, data.message);
-              }
-            } catch {
-              // skip malformed JSON
-            }
-          }
-        }
-      }
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") {
-        onError("network_error", err.message);
-      }
-    });
-
-  return controller;
+  return connectSSE(`${BASE_URL}/api/inpaint`, req, (event, data) => {
+    if (event === "completed") onCompleted(data as InpaintCompleted);
+    else if (event === "error" || event === "network_error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
+  });
 }
 
 // --- Settings ---

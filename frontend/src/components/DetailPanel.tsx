@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
-import { getImageFileUrl, deleteImages } from "../services/api";
+import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
 import MaskEditor from "./MaskEditor";
 import type { Image, MaskImageSource } from "../types";
 
@@ -248,21 +248,19 @@ export default function DetailPanel() {
           source={editingMask}
           onClose={() => setEditingMask(null)}
           onGenerate={(maskB64, prompt) => {
-            import("../services/api").then(({ inpaintImage }) => {
-              const req = editingMask.type === "generated"
-                ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
-                : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
-              inpaintImage(
-                req,
-                () => {
-                  setEditingMask(null);
-                  Promise.all([fetchSessions(), selectSession(activeSessionId)]);
-                },
-                (code, msg) => {
-                  console.error("Inpaint failed:", code, msg);
-                }
-              );
-            });
+            const req = editingMask.type === "generated"
+              ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
+              : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
+            inpaintImage(
+              req,
+              () => {
+                setEditingMask(null);
+                Promise.all([fetchSessions(), selectSession(activeSessionId)]);
+              },
+              (code, msg) => {
+                console.error("Inpaint failed:", code, msg);
+              }
+            );
           }}
         />
       )}
