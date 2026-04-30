@@ -58,6 +58,7 @@ async def get_settings(request: Request):
         "api_key": api_key,
         **{k: settings[k] for k in ("base_url", "api_mode", "model_name")},
         "resolved_endpoint": _resolve_endpoint(settings["base_url"], settings["api_mode"]),
+        "full_version": request.app.state.full_version,
     }
 
 
