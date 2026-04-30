@@ -254,10 +254,10 @@ frontend/src/components/
 
 ### State 管理
 
-蒙版数据不放入全局 store 循环流转，通过组件间回调传递：
+蒙版数据不放入全局 store 循环流转，通过组件间回调传递。**两个入口都是即时生成**（点击编辑器的 Generate 后立即调用 API，生成结果追加到会话）：
 
 - DetailPanel `onInpaint(imageId)` → 打开 MaskEditor → `onApply(maskB64, prompt)` → 调用 `/api/inpaint`
-- InputArea 附件编辑 → `onApply(maskB64, prompt)` → 更新附件数据，随下一次 Generate 发送
+- InputArea 附件编辑 → `onApply(maskB64, prompt)` → 调用 `/api/inpaint`（source_image_b64 取自附件数据）
 
 ### DetailPanel 翻页改造
 
