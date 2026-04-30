@@ -27,8 +27,8 @@ const FILES = [
   },
   {
     path: "backend/src/server.py",
-    pattern: /version="(\d+\.\d+\.\d+)"/,
-    replace: (v) => `version="${v}"`,
+    pattern: /APP_VERSION = "(\d+\.\d+\.\d+)"/,
+    replace: (v) => `APP_VERSION = "${v}"`,
   },
   {
     path: "frontend/package.json",
