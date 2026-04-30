@@ -16,6 +16,7 @@ from src.api import sessions as sessions_api
 from src.api import generate as generate_api
 from src.api import images as images_api
 from src.api import settings as settings_api
+from src.api import inpaint as inpaint_api
 
 try:
     from src.build_info import BUILD_TIMESTAMP
@@ -68,6 +69,7 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
     app.include_router(generate_api.router)
     app.include_router(images_api.router)
     app.include_router(settings_api.router)
+    app.include_router(inpaint_api.router)
 
     return app
 
