@@ -73,14 +73,15 @@ export function useMaskCanvas(
     return maskCanvasRef.current;
   }, [imageElement]);
 
-  // 将 canvas 坐标转换为原图坐标
+  // 将 CSS 像素的 canvas 坐标转换为原图坐标
   const canvasToImage = useCallback(
     (cx: number, cy: number): Point | null => {
       const rect = getImageRect();
       if (!rect) return null;
+      const dpr = window.devicePixelRatio || 1;
       return {
-        x: (cx - rect.x) / rect.scale,
-        y: (cy - rect.y) / rect.scale,
+        x: (cx * dpr - rect.x) / rect.scale,
+        y: (cy * dpr - rect.y) / rect.scale,
       };
     },
     [getImageRect]
@@ -118,11 +119,9 @@ export function useMaskCanvas(
     [drawMaskDot, state.brushSize]
   );
 
-  // 渲染蒙版叠加到显示 canvas
   const renderOverlay = useCallback(() => {
     const canvas = canvasRef.current;
-    const maskC = maskCanvasRef.current;
-    if (!canvas || !imageElement || !maskC) return;
+    if (!canvas || !imageElement) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -130,15 +129,16 @@ export function useMaskCanvas(
     const rect = getImageRect();
     if (!rect) return;
 
-    // 清空并绘制原图
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(imageElement, rect.x, rect.y, rect.w, rect.h);
 
-    // 绘制蒙版叠加（半透明）
-    ctx.save();
-    ctx.globalAlpha = 0.35;
-    ctx.drawImage(maskC, rect.x, rect.y, rect.w, rect.h);
-    ctx.restore();
+    const maskC = maskCanvasRef.current;
+    if (maskC) {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(maskC, rect.x, rect.y, rect.w, rect.h);
+      ctx.restore();
+    }
 
     // 绘制矩形预览
     if (currentRectRef.current) {

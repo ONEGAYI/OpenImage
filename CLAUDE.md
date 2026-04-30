@@ -197,7 +197,7 @@ CSS 变量驱动的暖色调双主题（`globals.css`）：
 ## 编码约定
 
 - **后端**: 全异步（aiosqlite + async/await），FastAPI `app.state` 注入依赖，`_` 前缀表示内部方法
-- **前端**: CSS 变量 + inline style 驱动样式（非 Tailwind class 着色），组件内 onMouseEnter/Leave 实现悬停效果
+- **前端**: CSS 变量 + inline style 驱动样式（非 Tailwind class 着色），组件内 onMouseEnter/Leave 实现悬停效果。前端**必须使用 DESIGN.md 中的设计哲学**，设计前阅读。
 - **类型对齐**: 前端 `types/index.ts` 与后端 Pydantic model 字段一一对应
 - **测试**: pytest 异步模式（`asyncio_mode = "auto"`），临时目录 fixture 隔离，respx mock 外部 API
 

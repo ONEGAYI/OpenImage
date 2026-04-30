@@ -247,7 +247,7 @@ export default function DetailPanel() {
         <MaskEditor
           source={editingMask}
           onClose={() => setEditingMask(null)}
-          onGenerate={(maskB64, prompt) => {
+          onGenerate={(maskB64, prompt, reportError) => {
             const req = editingMask.type === "generated"
               ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
               : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
@@ -257,8 +257,8 @@ export default function DetailPanel() {
                 setEditingMask(null);
                 Promise.all([fetchSessions(), selectSession(activeSessionId)]);
               },
-              (code, msg) => {
-                console.error("Inpaint failed:", code, msg);
+              (_code, msg) => {
+                reportError(msg || "生成失败，请检查 API 设置或网络连接");
               }
             );
           }}

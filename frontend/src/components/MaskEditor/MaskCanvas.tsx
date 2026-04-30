@@ -18,8 +18,13 @@ export default function MaskCanvas({ maskCanvasHook, canvasRef }: MaskCanvasProp
 
     const observer = new ResizeObserver(() => {
       const { width, height } = container.getBoundingClientRect();
-      canvas.width = width;
-      canvas.height = height;
+      const dpr = window.devicePixelRatio || 1;
+      const w = width * dpr;
+      const h = height * dpr;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
       hookRef.current.renderOverlay();
     });
     observer.observe(container);

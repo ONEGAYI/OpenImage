@@ -8,13 +8,14 @@ import type { MaskImageSource } from "../../types";
 interface MaskEditorProps {
   source: MaskImageSource;
   onClose: () => void;
-  onGenerate: (maskB64: string, prompt: string) => void;
-  isGenerating?: boolean;
+  onGenerate: (maskB64: string, prompt: string, reportError: (msg: string) => void) => void;
 }
 
-export default function MaskEditor({ source, onClose, onGenerate, isGenerating }: MaskEditorProps) {
+export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorProps) {
   const [prompt, setPrompt] = useState("");
   const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const imageUrl =
@@ -28,10 +29,12 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
   useEffect(() => {
     let cancelled = false;
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => { if (!cancelled) setImageEl(img); };
     img.src = imageUrl;
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      img.src = "";  // 中止未完成的图片请求
+    };
   }, [imageUrl]);
 
   const hook = useMaskCanvas(canvasRef, imageEl);
@@ -39,13 +42,20 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
   const handleGenerate = useCallback(() => {
     const maskB64 = hook.exportMask();
     if (!maskB64 || !prompt.trim()) return;
-    onGenerateRef.current(maskB64, prompt.trim());
+    setGenerating(true);
+    setErrorMsg(null);
+    onGenerateRef.current(maskB64, prompt.trim(), (msg: string) => {
+      setGenerating(false);
+      setErrorMsg(msg);
+    });
   }, [hook.exportMask, prompt]);
 
   const sourceLabel =
     source.type === "generated"
       ? source.imageId
       : "来自附件";
+
+  const canSubmit = hook.state.hasMask && prompt.trim() && !generating;
 
   return (
     <div
@@ -85,9 +95,10 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
                 padding: "6px 16px",
                 borderRadius: 6,
                 background: "#252320",
-                color: "#a09d96",
+                color: "#cc785c",
                 border: "none",
                 fontSize: 13,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -126,6 +137,22 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
           />
         </div>
 
+        {/* 错误提示 */}
+        {errorMsg && (
+          <div
+            style={{
+              padding: "8px 20px",
+              background: "#1f1b1b",
+              borderTop: "1px solid #3d2020",
+              color: "#c64545",
+              fontSize: 12,
+              lineHeight: 1.5,
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
         {/* 底栏 Prompt */}
         <div
           style={{
@@ -139,7 +166,7 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
         >
           <input
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={(e) => { setPrompt(e.target.value); if (errorMsg) setErrorMsg(null); }}
             placeholder="Describe what to generate in the masked area..."
             style={{
               flex: 1,
@@ -152,14 +179,14 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
               outline: "none",
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && hook.state.hasMask && prompt.trim()) {
+              if (e.key === "Enter" && canSubmit) {
                 handleGenerate();
               }
             }}
           />
           <button
             onClick={handleGenerate}
-            disabled={!hook.state.hasMask || !prompt.trim() || isGenerating}
+            disabled={!canSubmit}
             style={{
               padding: "9px 22px",
               borderRadius: 8,
@@ -168,11 +195,11 @@ export default function MaskEditor({ source, onClose, onGenerate, isGenerating }
               border: "none",
               fontSize: 13,
               fontWeight: 500,
-              cursor: "pointer",
-              opacity: !hook.state.hasMask || !prompt.trim() ? 0.4 : 1,
+              cursor: canSubmit ? "pointer" : "default",
+              opacity: canSubmit ? 1 : 0.4,
             }}
           >
-            {isGenerating ? "Generating..." : "Generate"}
+            {generating ? "Generating..." : "Generate"}
           </button>
         </div>
       </div>

@@ -231,7 +231,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         <MaskEditor
           source={{ type: "attachment", attachmentId: editingAttachment.id, imageB64: editingAttachment.data }}
           onClose={() => setEditingAttachment(null)}
-          onGenerate={(maskB64, prompt) => {
+          onGenerate={(maskB64, prompt, reportError) => {
             const store = useSessionStore.getState();
             inpaintImage(
               {
@@ -244,8 +244,8 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
                 setEditingAttachment(null);
                 Promise.all([store.fetchSessions(), store.selectSession(activeSessionId)]);
               },
-              (code, msg) => {
-                console.error("Inpaint failed:", code, msg);
+              (_code, msg) => {
+                reportError(msg || "生成失败，请检查 API 设置或网络连接");
               }
             );
           }}
