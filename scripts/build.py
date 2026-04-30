@@ -8,6 +8,7 @@ OpenImage 构建脚本
 import shutil
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 ROOT = Path(__file__).parent.parent
 BACKEND = ROOT / "backend"
@@ -21,6 +22,13 @@ def get_target_triple() -> str:
         capture_output=True, text=True, check=True,
     )
     return result.stdout.strip()
+
+
+def generate_build_info():
+    timestamp = datetime.now().strftime("%Y%m%d.%H%M%S")
+    target = BACKEND / "src" / "build_info.py"
+    target.write_text(f'BUILD_TIMESTAMP = "{timestamp}"\n', encoding="utf-8")
+    print(f"  Build timestamp: {timestamp}")
 
 
 def build_backend():
@@ -58,6 +66,7 @@ def build_tauri():
 
 
 def main():
+    generate_build_info()
     build_backend()
     deploy_sidecar()
     build_tauri()
