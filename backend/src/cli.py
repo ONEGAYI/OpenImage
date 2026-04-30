@@ -14,6 +14,26 @@ sessions_app = typer.Typer(help="会话管理")
 app.add_typer(sessions_app, name="sessions")
 console = Console()
 
+
+def _version_callback(value: bool):
+    if value:
+        from src.server import FULL_VERSION
+        console.print(FULL_VERSION)
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False, "--version", "-v",
+        callback=_version_callback,
+        is_eager=True,
+        help="显示版本信息",
+    ),
+):
+    pass
+
+
 MAX_RETRIES = 3
 BASE_DELAY = 2
 NON_RETRYABLE = (KeyboardInterrupt, SystemExit)
