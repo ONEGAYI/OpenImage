@@ -5,6 +5,26 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.1.0] - 2026-04-30
+
+### 新功能
+
+- **Inpainting 局部重绘**：完整的前后端 inpainting 管线，支持在图片上绘制蒙版并局部重新生成
+  - 后端 `/api/inpaint` SSE 端点，接收原图 + mask base64 + prompt，支持三模式路由（Responses API 双图模式、Images Edits API、Chat Completions 双图模式）
+  - 前端 MaskEditor 全屏蒙版编辑器：画笔（自由绘制）、矩形（选区填充）、橡皮擦三种工具，支持画布缩放（滚轮 0.25×–5×）和中键平移
+  - DetailPanel 单图选中时提供 Inpaint 入口按钮，InputArea 附件缩略图 hover 显示 Inpaint 编辑图标，两个入口均自动携带原图数据
+  - 蒙版导出为透明 PNG base64，用户输入 Prompt 描述希望生成的区域内容后提交
+
+### Bug 修复
+
+- **MaskEditor 三连修**：修复打开后黑屏无画面（CORS crossOrigin 冲突 + renderOverlay 过早返回双重根因）、修复高 DPI 屏幕下图片模糊（Canvas 未适配 devicePixelRatio）、修复 Generate 点击后无成功/失败反馈的静默失败问题
+- **测试修复**：`test_client.py` 中过时的方法名更新
+
+### 其他改进
+
+- 新增 `DESIGN.md` Claude 设计哲学参考文档，前端组件遵循该设计令牌系统
+- 代码审查清理：消除 useMaskCanvas 重复逻辑、移除冗余状态别名、优化 Canvas 重绘条件
+
 ## [1.0.1] - 2026-04-30
 
 ### 新功能
@@ -84,5 +104,6 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.1.0]: https://github.com/user/OpenImage/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/user/OpenImage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/user/OpenImage/releases/tag/v1.0.0
