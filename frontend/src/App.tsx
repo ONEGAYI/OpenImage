@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { BASE_URL } from "./services/api";
 import Sidebar from "./components/Sidebar";
 import Gallery from "./components/Gallery";
 import InputArea from "./components/InputArea";
@@ -17,21 +18,43 @@ function App() {
       setError("Backend failed to start within 30 seconds");
     }, 30000);
 
-    const unlistenReady = listen("backend-ready", () => {
-      clearTimeout(timeout);
-      setReady(true);
-    });
+    if ("__TAURI_INTERNALS__" in window) {
+      const unlistenReady = listen("backend-ready", () => {
+        clearTimeout(timeout);
+        setReady(true);
+      });
 
-    const unlistenError = listen<string>("backend-error", (e) => {
-      clearTimeout(timeout);
-      setError(e.payload);
-    });
+      const unlistenError = listen<string>("backend-error", (e) => {
+        clearTimeout(timeout);
+        setError(e.payload);
+      });
 
-    return () => {
-      unlistenReady.then((fn) => fn());
-      unlistenError.then((fn) => fn());
-      clearTimeout(timeout);
-    };
+      return () => {
+        unlistenReady.then((fn) => fn());
+        unlistenError.then((fn) => fn());
+        clearTimeout(timeout);
+      };
+    } else {
+      let active = true;
+      const poll = async () => {
+        while (active) {
+          try {
+            const res = await fetch(`${BASE_URL}/api/settings`);
+            if (res.ok) {
+              clearTimeout(timeout);
+              setReady(true);
+              return;
+            }
+          } catch {}
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      };
+      poll();
+      return () => {
+        active = false;
+        clearTimeout(timeout);
+      };
+    }
   }, []);
 
   if (error) {

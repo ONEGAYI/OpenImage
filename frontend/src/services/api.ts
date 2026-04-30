@@ -6,7 +6,7 @@ import type {
   SettingsResponse,
 } from "../types";
 
-const BASE_URL = import.meta.env.DEV 
+export const BASE_URL = import.meta.env.DEV 
   ? "http://localhost:8765"
   : "http://127.0.0.1:8765";
 
