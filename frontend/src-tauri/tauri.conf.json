@@ -37,6 +37,11 @@
     ],
     "externalBin": [
       "./binaries/openimage-backend"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    }
   }
 }

@@ -1,11 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
 """PyInstaller 配置文件 — OpenImage Backend"""
+import sysconfig
+from pathlib import Path
+
 block_cipher = None
+
+# Conda 环境下 DLL 存放在 Library/bin/，PyInstaller 无法自动发现
+conda_bin = Path(sysconfig.get_config_var('BINDIR') or '') / 'Library' / 'bin'
+conda_dlls = []
+_conda_dll_names = [
+    'libexpat.dll', 'libcrypto-3-x64.dll', 'libssl-3-x64.dll',
+    'liblzma.dll', 'libbz2.dll', 'ffi.dll', 'sqlite3.dll',
+    'libmpdec-4.dll', 'zstd.dll',
+]
+for _name in _conda_dll_names:
+    _p = conda_bin / _name
+    if _p.exists():
+        conda_dlls.append((str(_p), '.'))
 
 a = Analysis(
     ['entry.py'],
     pathex=[],
-    binaries=[],
+    binaries=conda_dlls,
     datas=[
         ('src', 'src'),
     ],
@@ -53,23 +69,27 @@ a = Analysis(
         'aiosqlite',
         'PIL',
         'PIL.Image',
-        # CLI (indirectly needed)
-        'typer',
-        'rich',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
+        # CLI — 打包后不需要
+        'typer', 'rich', 'pygments',
+        # AWS — 不使用
+        'boto3', 'botocore', 'boto',
+        # 测试
+        'pytest', 'py', '_pytest',
+        # 科学计算/可视化 — 不使用
+        'numpy', 'scipy', 'matplotlib', 'pandas',
+        # GUI — 不使用
         'tkinter',
-        'unittest',
-        'test',
-        'tests',
-        'numpy',
-        'scipy',
-        'matplotlib',
-        'pip',
-        'setuptools',
+        # XML 处理 — heavy, 不使用
+        'lxml', 'lxml.etree', 'lxml._elementpath',
+        # 测试/内部
+        'unittest', 'test', 'tests',
+        # 包管理
+        'pip', 'setuptools', 'pkg_resources',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

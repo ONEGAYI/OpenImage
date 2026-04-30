@@ -7,6 +7,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from src.core.config import get_base_dir
+
 app = typer.Typer(name="openimage", help="OpenImage - GPT Image 2 客户端")
 sessions_app = typer.Typer(help="会话管理")
 app.add_typer(sessions_app, name="sessions")
@@ -20,29 +22,6 @@ _NON_RETRYABLE_KEYWORDS = (
     "403", "forbidden", "permission",
     "400", "invalid_request", "invalid_image",
 )
-
-
-def _get_base_dir() -> Path:
-    """获取数据目录
-
-    开发环境：项目根目录（当前文件向上两级）
-    打包后（PyInstaller）：系统标准应用数据目录
-      - Windows: %APPDATA%/OpenImage
-      - macOS: ~/Library/Application Support/OpenImage
-      - Linux: ~/.local/share/OpenImage
-    """
-    if getattr(sys, 'frozen', False):
-        if sys.platform == 'win32':
-            base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
-        elif sys.platform == 'darwin':
-            base = Path.home() / 'Library' / 'Application Support'
-        else:
-            base = Path.home() / '.local' / 'share'
-        base_dir = base / 'OpenImage'
-    else:
-        base_dir = Path(__file__).parent.parent
-
-    return base_dir
 
 
 def _is_retryable(exc: Exception) -> bool:
@@ -77,7 +56,7 @@ def serve(
     import uvicorn
     from src.server import create_app
 
-    resolved = Path(base_dir) if base_dir else _get_base_dir()
+    resolved = Path(base_dir) if base_dir else get_base_dir()
     console.print(f"[green]Starting OpenImage server on port {port}...[/green]")
     console.print(f"[dim]Data directory: {resolved}[/dim]")
     uvicorn.run(create_app(resolved), host="127.0.0.1", port=port)
@@ -122,7 +101,7 @@ def generate(
     from src.core.database import Database
 
     async def _run():
-        config = Config(_get_base_dir())
+        config = Config(get_base_dir())
         config.ensure_dirs()
         db = Database(config)
         await db.initialize()
@@ -161,7 +140,7 @@ def edit(
     from src.core.database import Database
 
     async def _run():
-        config = Config(_get_base_dir())
+        config = Config(get_base_dir())
         config.ensure_dirs()
         db = Database(config)
         await db.initialize()
@@ -203,7 +182,7 @@ def sessions_list():
     from src.core.session import SessionManager
 
     async def _run():
-        config = Config(_get_base_dir())
+        config = Config(get_base_dir())
         config.ensure_dirs()
         db = Database(config)
         await db.initialize()
@@ -229,7 +208,7 @@ def config(
     from src.core.database import Database
 
     async def _run():
-        cfg = AppConfig(_get_base_dir())
+        cfg = AppConfig(get_base_dir())
         cfg.ensure_dirs()
         db = Database(cfg)
         await db.initialize()

@@ -1,5 +1,27 @@
 # backend/src/core/config.py
+import os
+import sys
 from pathlib import Path
+
+
+def get_base_dir() -> Path:
+    """获取应用数据目录
+    
+    开发环境：返回项目根目录
+    打包后（PyInstaller）：返回系统标准应用数据目录
+      - Windows: %APPDATA%/OpenImage
+      - macOS: ~/Library/Application Support/OpenImage
+      - Linux: ~/.local/share/OpenImage
+    """
+    if getattr(sys, 'frozen', False):
+        if sys.platform == 'win32':
+            base = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+        elif sys.platform == 'darwin':
+            base = Path.home() / 'Library' / 'Application Support'
+        else:
+            base = Path.home() / '.local' / 'share'
+        return base / 'OpenImage'
+    return Path(__file__).parent.parent.parent
 
 
 class Config:
