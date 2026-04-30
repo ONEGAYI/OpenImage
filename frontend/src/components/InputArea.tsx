@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from "react";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
+import { inpaintImage } from "../services/api";
 import type { AttachedFile } from "../types";
+import MaskEditor from "./MaskEditor";
 
 interface InputAreaProps {
   onOpenSettings?: () => void;
@@ -24,6 +26,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
   } = useGenerationStore();
 
   const [prompt, setPrompt] = useState("");
+  const [editingAttachment, setEditingAttachment] = useState<AttachedFile | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +124,18 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
               style={{ width: 52, height: 52, borderRadius: "var(--radius-sm)", borderColor: "var(--border)", background: "var(--sand)" }}
             >
               <img src={att.preview_url} alt={att.name} className="w-full h-full object-cover" />
+              {/* 编辑图标（左下角） */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingAttachment(att); }}
+                className="absolute bottom-0.5 left-0.5 w-[20px] h-[20px] rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                style={{ background: "rgba(20,20,19,0.6)" }}
+                title="Inpaint this image"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                  <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                </svg>
+              </button>
               <button
                 onClick={() => removeAttachment(att.id)}
                 className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -211,6 +226,31 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           >Generate</button>
         )}
       </div>
+
+      {editingAttachment && activeSessionId && (
+        <MaskEditor
+          source={{ type: "attachment", attachmentId: editingAttachment.id, imageB64: editingAttachment.data }}
+          onClose={() => setEditingAttachment(null)}
+          onGenerate={(maskB64, prompt) => {
+            const store = useSessionStore.getState();
+            inpaintImage(
+              {
+                session_id: activeSessionId,
+                prompt,
+                source_image_b64: editingAttachment.data,
+                mask_b64: maskB64,
+              },
+              () => {
+                setEditingAttachment(null);
+                Promise.all([store.fetchSessions(), store.selectSession(activeSessionId)]);
+              },
+              (code, msg) => {
+                console.error("Inpaint failed:", code, msg);
+              }
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
