@@ -7,7 +7,6 @@ from PIL import Image
 from io import BytesIO
 from pydantic import BaseModel
 
-from src.core.client import API_MODE_CHAT
 from src.api.generate import GenerateParams, _read_image_b64, _save_generated_image
 
 router = APIRouter(tags=["inpaint"])
