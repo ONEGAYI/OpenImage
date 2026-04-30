@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import Config
@@ -41,9 +41,15 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
 
     app = FastAPI(title="OpenImage", version="1.0.0", lifespan=lifespan)
 
+    @app.middleware("http")
+    async def add_corp_header(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+        return response
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["tauri://localhost", "https://tauri.localhost", "http://localhost:1420"],
+        allow_origin_regex=r"^(tauri://localhost|https?://tauri\.localhost|https?://localhost:\d+)$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

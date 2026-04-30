@@ -17,13 +17,19 @@ function App() {
       setError("Backend failed to start within 30 seconds");
     }, 30000);
 
-    const unlisten = listen("backend-ready", () => {
+    const unlistenReady = listen("backend-ready", () => {
       clearTimeout(timeout);
       setReady(true);
     });
 
+    const unlistenError = listen<string>("backend-error", (e) => {
+      clearTimeout(timeout);
+      setError(e.payload);
+    });
+
     return () => {
-      unlisten.then((fn) => fn());
+      unlistenReady.then((fn) => fn());
+      unlistenError.then((fn) => fn());
       clearTimeout(timeout);
     };
   }, []);

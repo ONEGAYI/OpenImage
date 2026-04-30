@@ -1,4 +1,5 @@
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tauri::{Emitter, Manager, RunEvent};
@@ -22,9 +23,23 @@ pub fn run() {
         .setup(|app| {
             let app_handle = app.handle().clone();
 
-            // Resolve user data directory
-            let data_dir = app.path().app_data_dir()?;
+            // Use install directory so user data lives alongside the app
+            let data_dir = std::env::current_exe()?
+                .parent()
+                .expect("executable has no parent directory")
+                .to_path_buf();
             std::fs::create_dir_all(&data_dir)?;
+
+            #[cfg(target_os = "windows")]
+            {
+                let output = std::process::Command::new("taskkill")
+                    .args(["/F", "/T", "/IM", "openimage-backend.exe"])
+                    .output();
+                // Only wait if a process was actually killed (exit code 0 = found & killed)
+                if output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                }
+            }
 
             // Spawn the sidecar backend process
             let sidecar = app
@@ -42,7 +57,12 @@ pub fn run() {
                 .unwrap()
                 .replace(child);
 
-            // Log sidecar output
+            // Shared flag: set to true once health check passes
+            let healthy = Arc::new(AtomicBool::new(false));
+
+            // Log sidecar output + detect early exit before health check passes
+            let log_handle = app_handle.clone();
+            let healthy_flag = healthy.clone();
             tauri::async_runtime::spawn(async move {
                 use tauri_plugin_shell::process::CommandEvent;
                 while let Some(event) = rx.recv().await {
@@ -55,10 +75,16 @@ pub fn run() {
                         }
                         CommandEvent::Terminated(status) => {
                             eprintln!("[backend] exited: {:?}", status);
+                            if !healthy_flag.load(Ordering::Relaxed) {
+                                let _ = log_handle.emit("backend-error", "Backend process exited unexpectedly");
+                            }
                             break;
                         }
                         CommandEvent::Error(err) => {
                             eprintln!("[backend] error: {}", err);
+                            if !healthy_flag.load(Ordering::Relaxed) {
+                                let _ = log_handle.emit("backend-error", "Backend error");
+                            }
                             break;
                         }
                         _ => {}
@@ -68,6 +94,7 @@ pub fn run() {
 
             // Health check: poll until backend responds
             let health_handle = app_handle.clone();
+            let healthy_flag2 = healthy.clone();
             tauri::async_runtime::spawn(async move {
                 let url = format!("http://127.0.0.1:{}/api/settings", BACKEND_PORT);
                 let client = reqwest::Client::builder()
@@ -75,11 +102,14 @@ pub fn run() {
                     .build()
                     .unwrap();
 
-                for attempt in 0..60 {
-                    tokio::time::sleep(Duration::from_millis(500)).await;
+                for attempt in 0..150 {
+                    if attempt > 0 {
+                        tokio::time::sleep(Duration::from_millis(200)).await;
+                    }
                     match client.get(&url).send().await {
                         Ok(_) => {
                             println!("[backend] healthy after {} attempts", attempt + 1);
+                            healthy_flag2.store(true, Ordering::Relaxed);
                             health_handle.emit("backend-ready", ()).ok();
                             return;
                         }
@@ -88,7 +118,8 @@ pub fn run() {
                         }
                     }
                 }
-                eprintln!("[backend] failed to start within 30 seconds");
+                eprintln!("[backend] failed to start within 30s");
+                let _ = health_handle.emit("backend-error", "Backend failed to start within 30 seconds");
             });
 
             Ok(())

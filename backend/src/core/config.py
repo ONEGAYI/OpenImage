@@ -5,13 +5,11 @@ from pathlib import Path
 
 
 def get_base_dir() -> Path:
-    """获取应用数据目录
-    
+    """获取应用数据目录（仅用于独立运行时的 fallback）
+
+    Tauri 桌面端通过 --base-dir 传入安装目录，不经过此函数。
     开发环境：返回项目根目录
-    打包后（PyInstaller）：返回系统标准应用数据目录
-      - Windows: %APPDATA%/OpenImage
-      - macOS: ~/Library/Application Support/OpenImage
-      - Linux: ~/.local/share/OpenImage
+    独立运行（PyInstaller）：返回系统标准应用数据目录
     """
     if getattr(sys, 'frozen', False):
         if sys.platform == 'win32':
