@@ -6,6 +6,12 @@ use tauri::{Emitter, Manager, RunEvent};
 use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 struct Backend(Mutex<Option<CommandChild>>);
 
 const BACKEND_PORT: u16 = 8765;
@@ -39,6 +45,7 @@ pub fn run() {
                 {
                     let output = std::process::Command::new("taskkill")
                         .args(["/F", "/T", "/IM", BACKEND_PROCESS])
+                        .creation_flags(CREATE_NO_WINDOW)
                         .output();
                     if output.as_ref().map(|o| o.status.success()).unwrap_or(false) {
                         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -141,6 +148,7 @@ pub fn run() {
                 #[cfg(target_os = "windows")]
                 let _ = std::process::Command::new("taskkill")
                     .args(["/F", "/T", "/IM", BACKEND_PROCESS])
+                    .creation_flags(CREATE_NO_WINDOW)
                     .spawn();
             }
             _ => {}
