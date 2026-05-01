@@ -4,6 +4,7 @@ import { useGenerationStore } from "../stores/generationStore";
 import { inpaintImage } from "../services/api";
 import type { AttachedFile } from "../types";
 import MaskEditor from "./MaskEditor";
+import RatioSelector from "./RatioSelector";
 
 interface InputAreaProps {
   onOpenSettings?: () => void;
@@ -172,6 +173,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             Settings
           </button>
         )}
+        <RatioSelector />
         <span className="flex-1" />
         <span className="text-[11px] leading-6" style={{ color: "var(--faint)" }}>Ctrl+Enter to send</span>
       </div>
