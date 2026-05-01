@@ -77,7 +77,7 @@ export default function DetailPanel() {
 
   if (selectedImages.length === 0) {
     return (
-      <div className="flex items-center justify-center border-l" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", color: "var(--faint)", fontSize: 13 }}>
+      <div className="flex items-center justify-center border-l h-full" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", color: "var(--faint)", fontSize: 13 }}>
         Select an image
       </div>
     );
