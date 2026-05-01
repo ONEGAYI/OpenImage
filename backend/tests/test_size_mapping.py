@@ -53,3 +53,33 @@ class TestDetectClosestRatio:
     def test_portrait(self):
         """纵向图片应识别为 9:16"""
         assert detect_closest_ratio(1024, 1536) == "9:16"
+
+
+class TestInpaintSizeCalculation:
+    """测试 Inpaint 从源图尺寸自动计算 params.size"""
+
+    def test_inpaint_size_square(self):
+        """正方形源图应映射到 1:1 1K"""
+        from src.api.inpaint import _inpaint_size_from_source
+        assert _inpaint_size_from_source(1024, 1024, "1K") == "1024x1024"
+
+    def test_inpaint_size_landscape(self):
+        """横向源图应映射到 16:9 2K"""
+        from src.api.inpaint import _inpaint_size_from_source
+        assert _inpaint_size_from_source(1920, 1080, "2K") == "2048x1152"
+
+    def test_inpaint_size_portrait(self):
+        """纵向源图应映射到 9:16 1K"""
+        from src.api.inpaint import _inpaint_size_from_source
+        assert _inpaint_size_from_source(1080, 1920, "1K") == "1024x1536"
+
+    def test_inpaint_size_non_standard(self):
+        """非标准尺寸源图应检测最接近比例"""
+        from src.api.inpaint import _inpaint_size_from_source
+        # 800x600 ≈ 1.33，最接近 1:1（差 0.33）而非 16:9（差 0.44）
+        assert _inpaint_size_from_source(800, 600, "1K") == "1024x1024"
+
+    def test_inpaint_size_default_tier(self):
+        """不传 tier 默认使用 1K"""
+        from src.api.inpaint import _inpaint_size_from_source
+        assert _inpaint_size_from_source(1536, 1024) == "1536x1024"

@@ -1,11 +1,19 @@
 import base64
 import json
+from io import BytesIO
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from PIL import Image
 from pydantic import BaseModel
 
-from src.api.generate import GenerateParams, _read_image_b64, _save_generated_image
+from src.api.generate import (
+    GenerateParams,
+    _read_image_b64,
+    _save_generated_image,
+    resolve_size,
+    detect_closest_ratio,
+)
 
 router = APIRouter(tags=["inpaint"])
 
@@ -25,6 +33,12 @@ def _validate_mask_b64(mask_b64: str) -> None:
         base64.b64decode(mask_b64, validate=True)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid mask image")
+
+
+def _inpaint_size_from_source(width: int, height: int, tier: str = "1K") -> str:
+    """根据源图尺寸和档位计算 Inpaint 输出尺寸（自动锁定比例）"""
+    ratio = detect_closest_ratio(width, height)
+    return resolve_size(ratio, tier)
 
 
 @router.post("/api/inpaint")
@@ -66,6 +80,12 @@ async def inpaint(body: InpaintRequest, request: Request):
         source_b64 = body.source_image_b64
 
     params = body.params or GenerateParams()
+
+    # Inpaint 自动锁定源图比例，计算输出尺寸
+    source_data = base64.b64decode(source_b64)
+    source_img = Image.open(BytesIO(source_data))
+    params.size = _inpaint_size_from_source(*source_img.size)
+
     client = request.app.state.client
 
     async def event_stream():
