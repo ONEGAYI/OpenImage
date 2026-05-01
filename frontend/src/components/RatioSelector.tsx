@@ -7,6 +7,8 @@ const RATIO_ICONS: Record<string, { w: number; h: number }> = {
   "9:16": { w: 15, h: 26 },
 };
 
+const ICON_BOX_H = 28;
+
 function ratioIconStyle(ratio: string, active: boolean) {
   const { w, h } = RATIO_ICONS[ratio];
   return {
@@ -14,6 +16,26 @@ function ratioIconStyle(ratio: string, active: boolean) {
     height: h,
     border: `1.5px solid ${active ? "white" : "var(--silver)"}`,
     borderRadius: ratio === "1:1" ? 3 : 2,
+  };
+}
+
+const iconAreaStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: ICON_BOX_H + 10,
+  width: "100%",
+};
+
+function labelStyle(selected: boolean): React.CSSProperties {
+  return {
+    width: "100%",
+    textAlign: "center",
+    padding: "4px 0",
+    background: selected ? "rgba(0,0,0,0.15)" : "var(--sand)",
+    color: selected ? "white" : "var(--muted)",
+    fontSize: 11,
+    fontWeight: 500,
   };
 }
 
@@ -48,7 +70,7 @@ export default function RatioSelector() {
 
   const optionBtn = (selected: boolean): React.CSSProperties => ({
     flex: 1,
-    padding: selected ? "8px 0" : "6px 0",
+    padding: 0,
     borderRadius: "var(--radius-sm)",
     border: selected ? "none" : "1px solid var(--border)",
     background: selected ? "var(--accent)" : "none",
@@ -59,7 +81,7 @@ export default function RatioSelector() {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: 4,
+    overflow: "hidden",
     boxShadow: selected ? "0 1px 4px rgba(201,100,66,0.2)" : "none",
   });
 
@@ -81,7 +103,7 @@ export default function RatioSelector() {
           ...buttonBase,
           color: isCustom ? "white" : "var(--muted)",
           background: isCustom ? "var(--accent)" : "none",
-          border: isCustom ? "none" : "1px solid var(--border)",
+          border: "1px solid " + (isCustom ? "transparent" : "var(--border)"),
         }}
         onMouseEnter={(e) => {
           if (!isCustom) {
@@ -97,7 +119,9 @@ export default function RatioSelector() {
         }}
         title="比例和尺寸"
       >
-        <span style={{ display: "inline-block", ...ratioIconStyle(aspectRatio, isCustom) }} />
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", height: ICON_BOX_H, flexShrink: 0 }}>
+          <span style={{ display: "block", ...ratioIconStyle(aspectRatio, isCustom) }} />
+        </span>
         {aspectRatio} · {imageSize}
       </button>
 
@@ -146,8 +170,12 @@ export default function RatioSelector() {
                     onClick={() => setAspectRatio(ratio)}
                     style={optionBtn(selected)}
                   >
-                    <div style={ratioIconStyle(ratio, selected)} />
-                    <span>{ratio}</span>
+                    <div style={iconAreaStyle}>
+                      <div style={ratioIconStyle(ratio, selected)} />
+                    </div>
+                    <div style={labelStyle(selected)}>
+                      {ratio}
+                    </div>
                   </button>
                 );
               })}
@@ -173,7 +201,12 @@ export default function RatioSelector() {
                   <button
                     key={tier}
                     onClick={() => setImageSize(tier)}
-                    style={{ ...optionBtn(selected), flexDirection: "row", padding: "6px 0" }}
+                    style={{
+                      ...optionBtn(selected),
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      padding: "8px 0",
+                    }}
                   >
                     {tier}
                   </button>

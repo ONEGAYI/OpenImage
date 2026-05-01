@@ -147,7 +147,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         </div>
       )}
 
-      <div className="flex gap-1 pb-0.5">
+      <div className="flex gap-1 pb-0.5 items-end">
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
         <button
           onClick={handleAttach} disabled={isGenerating}
@@ -175,7 +175,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         )}
         <RatioSelector />
         <span className="flex-1" />
-        <span className="text-[11px] leading-6" style={{ color: "var(--faint)" }}>Ctrl+Enter to send</span>
+        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>Ctrl+Enter</span>
       </div>
 
       <div className="flex gap-2 items-end">
@@ -189,7 +189,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             placeholder={activeSessionId ? "Describe the image you want to generate..." : "Select or create a session first"}
             disabled={!activeSessionId}
             rows={1}
-            className="w-full border outline-none resize-none transition-all"
+            className="w-full block border outline-none resize-none transition-all"
             style={{
               padding: "9px 14px", background: "var(--input-bg)", borderColor: "var(--border)",
               borderRadius: "var(--radius-md)", color: "var(--fg)", fontSize: "13.5px", lineHeight: 1.5,
@@ -203,7 +203,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           <button
             onClick={cancelGeneration}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer"
-            style={{ padding: "9px 18px", background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
+            style={{ padding: "9px 18px", minHeight: 40, background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.14)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
           >Cancel</button>
@@ -212,7 +212,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onClick={handleGenerate}
             disabled={!activeSessionId || !prompt.trim()}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ padding: "9px 22px", background: "var(--accent)", color: "#faf9f5" }}
+            style={{ padding: "9px 22px", minHeight: 40, background: "var(--accent)", color: "#faf9f5", border: "1px solid transparent" }}
             onMouseEnter={(e) => {
               if (!e.currentTarget.disabled) {
                 e.currentTarget.style.background = "var(--accent-h)";
