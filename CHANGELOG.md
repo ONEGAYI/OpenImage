@@ -5,6 +5,21 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-05-01
+
+### 新功能
+
+- **i18n 国际化**：完整的前端国际化支持，中英文自由切换
+  - 基于 react-i18next + i18next，默认跟随系统语言，手动切换后持久化到 localStorage
+  - 新增 LanguageSwitcher 语言切换组件（下拉菜单，含 ARIA 无障碍属性和键盘交互），集成到 Topbar
+  - 翻译所有前端组件用户可见文本：App、Sidebar、Gallery、DetailPanel、InputArea、RatioSelector、MaskEditor、SettingsDialog、Topbar
+  - i18n 代码审查修复：统一 t() 调用模式，消除硬编码字符串，修复 React key 稳定性
+
+### Bug 修复
+
+- DetailPanel 空状态高度未撑满导致背景色不可见
+- 输入区 UI 对齐瑕疵（Attach/Settings 按钮居中、Ctrl+Enter 提示文案恢复）
+
 ## [1.2.0] - 2026-05-01
 
 ### 新功能
@@ -120,6 +135,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.3.0]: https://github.com/user/OpenImage/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/user/OpenImage/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/user/OpenImage/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/user/OpenImage/compare/v1.0.0...v1.0.1
