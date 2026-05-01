@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Tool } from "./useMaskCanvas";
 
 interface ToolBarProps {
@@ -9,10 +10,10 @@ interface ToolBarProps {
   onResetZoom: () => void;
 }
 
-const TOOLS: { id: Tool; label: string; icon: string }[] = [
-  { id: "brush", label: "Brush", icon: "M12 19l7-7 3 3-7 7-3-3z M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" },
-  { id: "rectangle", label: "Rectangle", icon: "M3 3h18v18H3z" },
-  { id: "eraser", label: "Eraser", icon: "M20 20H7L3 16l9-9 8 8-4 4z" },
+const TOOLS: { id: Tool; labelKey: string; icon: string }[] = [
+  { id: "brush", labelKey: "mask.brush", icon: "M12 19l7-7 3 3-7 7-3-3z M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" },
+  { id: "rectangle", labelKey: "mask.rectangle", icon: "M3 3h18v18H3z" },
+  { id: "eraser", labelKey: "mask.eraser", icon: "M20 20H7L3 16l9-9 8 8-4 4z" },
 ];
 
 export default function ToolBar({
@@ -23,6 +24,7 @@ export default function ToolBar({
   onBrushSizeChange,
   onResetZoom,
 }: ToolBarProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -36,11 +38,11 @@ export default function ToolBar({
         gap: 4,
       }}
     >
-      {TOOLS.map(({ id, label, icon }) => (
+      {TOOLS.map(({ id, labelKey, icon }) => (
         <button
           key={id}
           onClick={() => onToolChange(id)}
-          title={label}
+          title={t(labelKey)}
           style={{
             width: 36,
             height: 36,
@@ -115,7 +117,7 @@ export default function ToolBar({
             cursor: "pointer",
           }}
         >
-          Fit
+          {t("mask.fit")}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useMaskCanvas } from "./useMaskCanvas";
 import MaskCanvas from "./MaskCanvas";
 import ToolBar from "./ToolBar";
@@ -12,6 +13,7 @@ interface MaskEditorProps {
 }
 
 export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorProps) {
+  const { t } = useTranslation();
   const [prompt, setPrompt] = useState("");
   const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -53,7 +55,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
   const sourceLabel =
     source.type === "generated"
       ? source.imageId
-      : "来自附件";
+      : t("mask.sourceAttachment");
 
   const canSubmit = hook.state.hasMask && prompt.trim() && !generating;
 
@@ -85,7 +87,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ color: "#faf9f5", fontSize: 14, fontWeight: 500 }}>Inpaint Editor</span>
+            <span style={{ color: "#faf9f5", fontSize: 14, fontWeight: 500 }}>{t("mask.title")}</span>
             <span style={{ color: "#a09d96", fontSize: 12 }}>{sourceLabel}</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -102,7 +104,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
                 cursor: "pointer",
               }}
             >
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               onClick={hook.clearMask}
@@ -116,7 +118,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
                 cursor: "pointer",
               }}
             >
-              Clear
+              {t("mask.clear")}
             </button>
           </div>
         </div>
@@ -167,7 +169,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
           <input
             value={prompt}
             onChange={(e) => { setPrompt(e.target.value); if (errorMsg) setErrorMsg(null); }}
-            placeholder="Describe what to generate in the masked area..."
+            placeholder={t("mask.placeholder")}
             style={{
               flex: 1,
               padding: "9px 14px",
@@ -199,7 +201,7 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
               opacity: canSubmit ? 1 : 0.4,
             }}
           >
-            {generating ? "Generating..." : "Generate"}
+            {generating ? t("common.generating") : t("input.generate")}
           </button>
         </div>
       </div>
