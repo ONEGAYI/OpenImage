@@ -85,6 +85,8 @@ async def inpaint(body: InpaintRequest, request: Request):
     source_data = base64.b64decode(source_b64)
     source_img = Image.open(BytesIO(source_data))
     params.size = _inpaint_size_from_source(*source_img.size)
+    del source_data
+    source_img.close()
 
     client = request.app.state.client
 

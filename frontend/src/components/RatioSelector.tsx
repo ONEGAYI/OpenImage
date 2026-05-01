@@ -63,6 +63,15 @@ export default function RatioSelector() {
     boxShadow: selected ? "0 1px 4px rgba(201,100,66,0.2)" : "none",
   });
 
+  const sectionLabelStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 500,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "var(--faint)",
+    marginBottom: 8,
+  };
+
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
       {/* 触发按钮 */}
@@ -127,18 +136,7 @@ export default function RatioSelector() {
 
           {/* 比例区 */}
           <div style={{ marginBottom: 12 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 500,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--faint)",
-                marginBottom: 8,
-              }}
-            >
-              比例
-            </div>
+            <div style={sectionLabelStyle}>比例</div>
             <div style={{ display: "flex", gap: 6 }}>
               {RATIO_OPTIONS.map((ratio) => {
                 const selected = aspectRatio === ratio;
@@ -167,18 +165,7 @@ export default function RatioSelector() {
 
           {/* 尺寸区 */}
           <div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 500,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--faint)",
-                marginBottom: 8,
-              }}
-            >
-              尺寸
-            </div>
+            <div style={sectionLabelStyle}>尺寸</div>
             <div style={{ display: "flex", gap: 6 }}>
               {SIZE_OPTIONS.map((tier) => {
                 const selected = imageSize === tier;

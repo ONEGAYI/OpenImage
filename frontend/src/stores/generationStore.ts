@@ -31,10 +31,10 @@ interface GenerationState {
   clearError: () => void;
   pendingForkFrom: string | null;
   setPendingForkFrom: (id: string | null) => void;
-  aspectRatio: string;
-  imageSize: string;
-  setAspectRatio: (ratio: string) => void;
-  setImageSize: (size: string) => void;
+  aspectRatio: (typeof RATIO_OPTIONS)[number];
+  imageSize: (typeof SIZE_OPTIONS)[number];
+  setAspectRatio: (ratio: (typeof RATIO_OPTIONS)[number]) => void;
+  setImageSize: (size: (typeof SIZE_OPTIONS)[number]) => void;
 }
 
 export const useGenerationStore = create<GenerationState>((set, get) => ({
