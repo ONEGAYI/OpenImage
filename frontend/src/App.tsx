@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
 import { BASE_URL } from "./services/api";
 import Sidebar from "./components/Sidebar";
@@ -9,13 +10,14 @@ import Topbar from "./components/Topbar";
 import SettingsDialog from "./components/SettingsDialog";
 
 function App() {
+  const { t } = useTranslation();
   const [showSettings, setShowSettings] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      setError("Backend failed to start within 30 seconds");
+      setError(t("app.backendTimeout"));
     }, 30000);
 
     if ("__TAURI_INTERNALS__" in window) {
@@ -65,7 +67,7 @@ function App() {
       >
         <div style={{ textAlign: "center", maxWidth: 400 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
-            Failed to start backend
+            {t("app.backendFailed")}
           </h2>
           <p style={{ fontSize: 14, opacity: 0.7 }}>{error}</p>
         </div>
@@ -91,7 +93,7 @@ function App() {
               margin: "0 auto 16px",
             }}
           />
-          <p style={{ fontSize: 14, opacity: 0.7 }}>Starting OpenImage...</p>
+          <p style={{ fontSize: 14, opacity: 0.7 }}>{t("app.starting")}</p>
         </div>
       </div>
     );

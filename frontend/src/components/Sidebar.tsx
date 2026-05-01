@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { getImageFileUrl } from "../services/api";
 
 export default function Sidebar() {
+  const { t } = useTranslation();
   const {
     sessions,
     activeSessionId,
@@ -42,7 +44,7 @@ export default function Sidebar() {
   }, [editingId]);
 
   const handleNew = async () => {
-    const name = `Session ${sessions.length + 1}`;
+    const name = t("sidebar.sessionName", { count: sessions.length + 1 });
     await createSession(name);
   };
 
@@ -91,13 +93,13 @@ export default function Sidebar() {
           style={{ padding: "9px 16px", background: "var(--accent)", color: "#faf9f5", letterSpacing: "0.01em" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--accent-h)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent)"; e.currentTarget.style.transform = "translateY(0)"; }}
-        >+ New Session</button>
+        >{t("sidebar.newSession")}</button>
       </div>
 
       {/* Search */}
       <div className="px-4 py-2.5 border-b" style={{ borderColor: "var(--border-s)" }}>
         <input
-          type="text" placeholder="Search sessions..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+          type="text" placeholder={t("sidebar.searchPlaceholder")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full border rounded-lg text-[12.5px] outline-none transition-all"
           style={{ padding: "7px 12px", background: "var(--input-bg)", borderColor: "var(--border)", color: "var(--fg)" }}
           onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(201,100,66,0.12)"; }}
@@ -109,7 +111,7 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto py-1.5 px-2">
         {filtered.length === 0 && (
           <div className="py-8 px-4 text-center text-[13px] leading-relaxed" style={{ color: "var(--faint)" }}>
-            {searchQuery ? "无匹配会话" : "暂无会话"}
+            {searchQuery ? t("sidebar.noMatch") : t("sidebar.noSessions")}
           </div>
         )}
         {filtered.map((session) => (
@@ -152,7 +154,7 @@ export default function Sidebar() {
               ) : (
                 <>
                   <div className="text-[13px] font-medium truncate" style={{ color: "var(--fg)" }}>{session.name}</div>
-                  <div className="text-[11px] mt-0.5" style={{ color: "var(--faint)" }}>{session.image_count ?? 0} images</div>
+                  <div className="text-[11px] mt-0.5" style={{ color: "var(--faint)" }}>{session.image_count ?? 0} {t("sidebar.images")}</div>
                 </>
               )}
             </div>
@@ -169,11 +171,11 @@ export default function Sidebar() {
           <button onClick={() => handleRename(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors" style={{ color: "var(--fg)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "var(--sand)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-          >Rename</button>
+          >{t("sidebar.rename")}</button>
           <button onClick={() => handleDelete(contextMenu.id)} className="w-full text-left px-3 py-1.5 text-[13px] rounded-md transition-colors" style={{ color: "var(--error)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
-          >Delete</button>
+          >{t("sidebar.delete")}</button>
         </div>
       )}
     </div>
