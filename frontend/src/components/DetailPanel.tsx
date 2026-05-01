@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
@@ -6,6 +7,7 @@ import MaskEditor from "./MaskEditor";
 import type { Image, MaskImageSource } from "../types";
 
 export default function DetailPanel() {
+  const { t } = useTranslation();
   const { images, selectedImageIds, activeSessionId, selectSession, fetchSessions, clearSelection } = useSessionStore();
   const { setPendingForkFrom } = useGenerationStore();
   const [deleting, setDeleting] = useState(false);
@@ -78,7 +80,7 @@ export default function DetailPanel() {
   if (selectedImages.length === 0) {
     return (
       <div className="flex items-center justify-center border-l h-full" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", color: "var(--faint)", fontSize: 13 }}>
-        Select an image
+        {t("detail.selectImage")}
       </div>
     );
   }
@@ -91,7 +93,7 @@ export default function DetailPanel() {
       {/* Preview */}
       <div className="border-b overflow-hidden" style={{ padding: 16, borderColor: "var(--border-s)" }}>
         {isSingle ? (
-          <img src={getImageFileUrl(singleImage!.id)} alt={`Step ${singleImage!.step}`} className="w-full" style={{ borderRadius: "var(--radius-md)", background: "var(--sand)", display: "block" }} />
+          <img src={getImageFileUrl(singleImage!.id)} alt={t("gallery.step", { step: singleImage!.step })} className="w-full" style={{ borderRadius: "var(--radius-md)", background: "var(--sand)", display: "block" }} />
         ) : (
           <MultiPreview images={selectedImages} />
         )}
@@ -101,30 +103,30 @@ export default function DetailPanel() {
       <div className="p-4 flex flex-col gap-3.5 flex-1">
         {isSingle ? (
           <>
-            <div><div style={labelStyle}>Step</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{singleImage!.step}</div></div>
-            <div><div style={labelStyle}>Prompt</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)" }}>{singleImage!.prompt}</div></div>
-            {singleImage!.revised_prompt && <div><div style={labelStyle}>Revised Prompt</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)" }}>{singleImage!.revised_prompt}</div></div>}
+            <div><div style={labelStyle}>{t("detail.step")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{singleImage!.step}</div></div>
+            <div><div style={labelStyle}>{t("detail.prompt")}</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)" }}>{singleImage!.prompt}</div></div>
+            {singleImage!.revised_prompt && <div><div style={labelStyle}>{t("detail.revisedPrompt")}</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)" }}>{singleImage!.revised_prompt}</div></div>}
             <div className="flex gap-4">
-              {[{ label: "Size", value: singleImage!.size }, { label: "Quality", value: singleImage!.quality }, { label: "Format", value: singleImage!.output_format }].map(({ label, value }) => (
+              {[{ label: t("detail.size"), value: singleImage!.size }, { label: t("detail.quality"), value: singleImage!.quality }, { label: t("detail.format"), value: singleImage!.output_format }].map(({ label, value }) => (
                 <div key={label} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
               ))}
             </div>
-            <div><div style={labelStyle}>Created</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{new Date(singleImage!.created_at).toLocaleString()}</div></div>
+            <div><div style={labelStyle}>{t("detail.created")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{new Date(singleImage!.created_at).toLocaleString()}</div></div>
           </>
         ) : (
           <>
             <div>
-              <div style={labelStyle}>Selection</div>
-              <div className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{selectedImages.length} images selected</div>
+              <div style={labelStyle}>{t("detail.selection")}</div>
+              <div className="text-[13px] font-medium" style={{ color: "var(--fg)" }}>{t("detail.imagesSelected", { count: selectedImages.length })}</div>
             </div>
             <div className="flex gap-4">
-              <div className="flex-1"><div style={labelStyle}>Steps</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{selectedImages.map((img) => img.step).join(", ")}</div></div>
-              <div className="flex-1"><div style={labelStyle}>Format</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{getCommonValue(selectedImages, "output_format")}</div></div>
+              <div className="flex-1"><div style={labelStyle}>{t("detail.steps")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{selectedImages.map((img) => img.step).join(", ")}</div></div>
+              <div className="flex-1"><div style={labelStyle}>{t("detail.format")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{(() => { const v = getCommonValue(selectedImages, "output_format"); return v === "Mixed" ? t("detail.mixed") : v; })()}</div></div>
             </div>
-            <div><div style={labelStyle}>Prompts</div>
+            <div><div style={labelStyle}>{t("detail.prompts")}</div>
               <div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)", maxHeight: 120, overflowY: "auto" }}>
                 {selectedImages.map((img) => (
-                  <div key={img.id} className="mb-1"><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--faint)" }}>Step {img.step}:</span> {img.prompt}</div>
+                  <div key={img.id} className="mb-1"><span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--faint)" }}>{t("detail.stepLabel", { step: img.step })}</span> {img.prompt}</div>
                 ))}
               </div>
             </div>
@@ -156,17 +158,17 @@ export default function DetailPanel() {
                     style={{ background: "var(--accent)", color: "#faf9f5" }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                  >View</button>
+                  >{t("detail.view")}</button>
                   <button onClick={handleSave} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
                     style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >Save Image</button>
+                  >{t("detail.saveImage")}</button>
                   <button onClick={handleRemove} disabled={deleting} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none disabled:opacity-50"
                     style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
-                  >{deleting ? "Removing..." : "Remove"}</button>
+                  >{deleting ? t("detail.removing") : t("detail.remove")}</button>
                 </>
               ) : (
                 <>
@@ -174,12 +176,12 @@ export default function DetailPanel() {
                     style={{ background: "rgba(181,51,51,0.08)", color: "var(--error)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = "rgba(181,51,51,0.14)"; }}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
-                  >{deleting ? "Removing..." : "Remove Selected"}</button>
+                  >{deleting ? t("detail.removing") : t("detail.removeSelected")}</button>
                   <button onClick={handleSaveAll} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
                     style={{ background: "var(--accent)", color: "#faf9f5" }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                  >Save All</button>
+                  >{t("detail.saveAll")}</button>
                 </>
               )}
             </div>
@@ -192,17 +194,17 @@ export default function DetailPanel() {
                     style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >Copy Prompt</button>
+                  >{t("detail.copyPrompt")}</button>
                   <button onClick={handleFork} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
                     style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >Fork from Here</button>
+                  >{t("detail.forkFromHere")}</button>
                   <button onClick={() => setEditingMask({ type: "generated", imageId: singleImage!.id })} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border-none"
                     style={{ background: "var(--accent)", color: "#faf9f5" }}
                     onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-h)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "var(--accent)")}
-                  >Inpaint</button>
+                  >{t("detail.inpaint")}</button>
                 </>
               ) : (
                 <>
@@ -210,12 +212,12 @@ export default function DetailPanel() {
                     style={{ background: "var(--sand)", color: "var(--fg)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >Copy Prompts</button>
+                  >{t("detail.copyPrompts")}</button>
                   <button onClick={handleForkLast} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
                     style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
-                  >Fork from Last</button>
+                  >{t("detail.forkFromLast")}</button>
                 </>
               )}
             </div>
@@ -258,7 +260,7 @@ export default function DetailPanel() {
                 Promise.all([fetchSessions(), selectSession(activeSessionId)]);
               },
               (_code, msg) => {
-                reportError(msg || "生成失败，请检查 API 设置或网络连接");
+                reportError(msg || t("error.generateFailed"));
               }
             );
           }}
@@ -279,7 +281,7 @@ export default function DetailPanel() {
           >
             <img
               src={getImageFileUrl(viewingImage.id)}
-              alt={`Step ${viewingImage.step}`}
+              alt={t("gallery.step", { step: viewingImage.step })}
               style={{ maxWidth: "92vw", maxHeight: "90vh", objectFit: "contain", borderRadius: "var(--radius-lg)", boxShadow: "0 8px 40px rgba(0,0,0,0.4)" }}
             />
             <button
@@ -298,6 +300,7 @@ export default function DetailPanel() {
 
 /* 3D stacked photo preview — last selected at front (nearest) */
 function MultiPreview({ images }: { images: Image[] }) {
+  const { t } = useTranslation();
   const reversed = [...images].reverse();
   const total = reversed.length;
   const maxReal = 3;
@@ -310,12 +313,12 @@ function MultiPreview({ images }: { images: Image[] }) {
   const maxOffset = displayCount <= 2 ? 60 : displayCount <= 3 ? 90 : 110;
 
   const getLayerStyle = (i: number): React.CSSProperties => {
-    const t = displayCount <= 1 ? 0 : i / (displayCount - 1); // 0=nearest, 1=farthest
-    const tx = -t * maxOffset;
-    const ry = -(maxAngle * (1 - t)); // nearest = maxAngle, farthest = 0
-    const s = Math.max(0.5, 1 - t * 0.12);
-    const op = Math.max(0.2, 1 - t * 0.3);
-    const blur = t * 2;
+    const ratio = displayCount <= 1 ? 0 : i / (displayCount - 1); // 0=nearest, 1=farthest
+    const tx = -ratio * maxOffset;
+    const ry = -(maxAngle * (1 - ratio)); // nearest = maxAngle, farthest = 0
+    const s = Math.max(0.5, 1 - ratio * 0.12);
+    const op = Math.max(0.2, 1 - ratio * 0.3);
+    const blur = ratio * 2;
 
     return {
       top: "50%",
@@ -330,7 +333,7 @@ function MultiPreview({ images }: { images: Image[] }) {
       transformOrigin: "right center",
       borderRadius: "var(--radius-md)",
       overflow: "hidden",
-      boxShadow: `0 ${4 + i * 3}px ${10 + i * 5}px rgba(0,0,0,${0.08 + t * 0.12})`,
+      boxShadow: `0 ${4 + i * 3}px ${10 + i * 5}px rgba(0,0,0,${0.08 + ratio * 0.12})`,
       border: "1px solid var(--border-s)",
     };
   };
@@ -344,7 +347,7 @@ function MultiPreview({ images }: { images: Image[] }) {
         <div key={img.id} className="absolute" style={getLayerStyle(i)}>
           <img
             src={getImageFileUrl(img.id)}
-            alt={`Step ${img.step}`}
+            alt={t("gallery.step", { step: img.step })}
             style={{ width: "100%", display: "block", background: "var(--sand)", aspectRatio: "1" }}
           />
         </div>
