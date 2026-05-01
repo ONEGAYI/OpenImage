@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { getSettings, updateSettings } from "../services/api";
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiMode, setApiMode] = useState<"responses" | "images" | "chat">("chat");
@@ -32,7 +34,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
         api_mode: apiMode,
         model_name: modelName.trim(),
       });
-      setMessage("Settings saved");
+      setMessage(t("settings.saved"));
       setTimeout(onClose, 800);
     } catch (err) {
       setMessage(`Error: ${err}`);
@@ -65,58 +67,58 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           className="text-lg font-medium mb-4"
           style={{ fontFamily: "var(--font-display)", color: "var(--fg)" }}
         >
-          Settings
+          {t("settings.title")}
         </h3>
 
-        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>API Key</label>
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("settings.apiKey")}</label>
         <input
           type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
-          placeholder="sk-..."
+          placeholder={t("settings.apiKeyPlaceholder")}
           className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none"
           style={inputStyle(false)}
           onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
           onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
         />
 
-        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>API Base URL</label>
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("settings.baseUrl")}</label>
         <input
           type="text" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)}
-          placeholder="https://api.openai.com/v1"
+          placeholder={t("settings.baseUrlPlaceholder")}
           className="w-full border rounded-lg px-3 py-2 text-sm mb-1 outline-none"
           style={inputStyle(false)}
           onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
           onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
         />
-        <div className="text-xs mb-3" style={{ color: "var(--faint)" }}>留空则使用 OpenAI 默认地址</div>
+        <div className="text-xs mb-3" style={{ color: "var(--faint)" }}>{t("settings.baseUrlHint")}</div>
 
-        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>API 模式</label>
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("settings.apiMode")}</label>
         <select
           value={apiMode} onChange={(e) => setApiMode(e.target.value as "responses" | "images" | "chat")}
           className="w-full border rounded-lg px-3 py-2 text-sm mb-1 outline-none cursor-pointer"
           style={{ background: "var(--input-bg)", borderColor: "var(--border)", color: "var(--fg)" }}
         >
-          <option value="chat">Chat Completions（/v1/chat/completions，推荐）</option>
-          <option value="images">Images API（/v1/images/generations）</option>
-          <option value="responses">Responses API（OpenAI 原生，支持多轮编辑）</option>
+          <option value="chat">{t("settings.modeChat")}</option>
+          <option value="images">{t("settings.modeImages")}</option>
+          <option value="responses">{t("settings.modeResponses")}</option>
         </select>
-        <div className="text-xs mb-3" style={{ color: "var(--faint)" }}>第三方代理推荐 Chat Completions 或 Images API</div>
+        <div className="text-xs mb-3" style={{ color: "var(--faint)" }}>{t("settings.modeHint")}</div>
 
         {resolvedEndpoint && (
           <div className="mb-3 rounded-lg px-3 py-2 text-xs font-mono break-all select-all" style={{ background: "var(--input-bg)", color: "var(--muted)", border: "1px solid var(--border)" }}>
-            <span style={{ color: "var(--faint)" }}>端点 </span>{resolvedEndpoint}
+            <span style={{ color: "var(--faint)" }}>{t("settings.endpoint")} </span>{resolvedEndpoint}
           </div>
         )}
 
-        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>模型名称</label>
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("settings.modelName")}</label>
         <input
           type="text" value={modelName} onChange={(e) => setModelName(e.target.value)}
-          placeholder="gpt-image-2"
+          placeholder={t("settings.modelNamePlaceholder")}
           className="w-full border rounded-lg px-3 py-2 text-sm mb-1 outline-none"
           style={inputStyle(false)}
           onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
           onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
         />
-        <div className="text-xs mb-4" style={{ color: "var(--faint)" }}>图像生成模型 ID，如 gpt-image-2、gemini-2.5-flash-image 等</div>
+        <div className="text-xs mb-4" style={{ color: "var(--faint)" }}>{t("settings.modelNameHint")}</div>
 
         {message && <div className="text-sm mb-3" style={{ color: "var(--muted)" }}>{message}</div>}
 
@@ -131,7 +133,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className="px-4 py-1.5 text-sm rounded-lg transition-colors cursor-pointer" style={{ color: "var(--muted)" }}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             onClick={handleSave}
@@ -139,7 +141,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
             className="px-4 py-1.5 text-sm rounded-lg transition-colors cursor-pointer disabled:opacity-40"
             style={{ background: "var(--accent)", color: "#faf9f5" }}
           >
-            {saving ? "Saving..." : "Save"}
+            {saving ? t("settings.saving") : t("settings.save")}
           </button>
         </div>
       </div>
