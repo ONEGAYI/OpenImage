@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useGenerationStore, RATIO_OPTIONS, SIZE_OPTIONS } from "../stores/generationStore";
 
 const RATIO_ICONS: Record<string, { w: number; h: number }> = {
@@ -40,6 +41,7 @@ function labelStyle(selected: boolean): React.CSSProperties {
 }
 
 export default function RatioSelector() {
+  const { t } = useTranslation();
   const { aspectRatio, imageSize, setAspectRatio, setImageSize } = useGenerationStore();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,7 +119,7 @@ export default function RatioSelector() {
             e.currentTarget.style.color = "var(--muted)";
           }
         }}
-        title="比例和尺寸"
+        title={t("ratio.tooltip")}
       >
         <span style={{ display: "flex", alignItems: "center", justifyContent: "center", height: ICON_BOX_H, flexShrink: 0 }}>
           <span style={{ display: "block", ...ratioIconStyle(aspectRatio, isCustom) }} />
@@ -160,7 +162,7 @@ export default function RatioSelector() {
 
           {/* 比例区 */}
           <div style={{ marginBottom: 12 }}>
-            <div style={sectionLabelStyle}>比例</div>
+            <div style={sectionLabelStyle}>{t("ratio.ratio")}</div>
             <div style={{ display: "flex", gap: 6 }}>
               {RATIO_OPTIONS.map((ratio) => {
                 const selected = aspectRatio === ratio;
@@ -193,7 +195,7 @@ export default function RatioSelector() {
 
           {/* 尺寸区 */}
           <div>
-            <div style={sectionLabelStyle}>尺寸</div>
+            <div style={sectionLabelStyle}>{t("ratio.size")}</div>
             <div style={{ display: "flex", gap: 6 }}>
               {SIZE_OPTIONS.map((tier) => {
                 const selected = imageSize === tier;

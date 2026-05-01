@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { inpaintImage } from "../services/api";
@@ -11,6 +12,7 @@ interface InputAreaProps {
 }
 
 export default function InputArea({ onOpenSettings }: InputAreaProps) {
+  const { t } = useTranslation();
   const { activeSessionId } = useSessionStore();
   const {
     isGenerating,
@@ -110,11 +112,11 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs"
           style={{ background: "rgba(201,100,66,0.08)", border: "1px solid rgba(201,100,66,0.15)", color: "var(--accent)" }}
         >
-          <span>Forking from {pendingForkFrom.slice(0, 16)}...</span>
+          <span>{t("input.forkingFrom", { id: pendingForkFrom.slice(0, 16) })}</span>
           <button onClick={() => setPendingForkFrom(null)} className="cursor-pointer text-xs" style={{ color: "var(--accent)" }}
             onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
             onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
-          >Cancel</button>
+          >{t("common.cancel")}</button>
         </div>
       )}
 
@@ -130,7 +132,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
                 onClick={(e) => { e.stopPropagation(); setEditingAttachment(att); }}
                 className="absolute bottom-0.5 left-0.5 w-[20px] h-[20px] rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 style={{ background: "rgba(20,20,19,0.6)" }}
-                title="Inpaint this image"
+                title={t("input.inpaintThisImage")}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                   <path d="M12 19l7-7 3 3-7 7-3-3z" />
@@ -155,10 +157,10 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           style={{ color: "var(--muted)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
-          title="Attach image"
+          title={t("input.attachImage")}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" /></svg>
-          Attach
+          {t("input.attach")}
         </button>
         {onOpenSettings && (
           <button
@@ -167,15 +169,15 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             style={{ color: "var(--muted)" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
-            title="Settings"
+            title={t("common.settings")}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
-            Settings
+            {t("common.settings")}
           </button>
         )}
         <RatioSelector />
         <span className="flex-1" />
-        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>Ctrl+Enter to send</span>
+        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>{t("input.ctrlEnterToSend")}</span>
       </div>
 
       <div className="flex gap-2 items-end">
@@ -186,7 +188,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTextareaInput}
-            placeholder={activeSessionId ? "Describe the image you want to generate..." : "Select or create a session first"}
+            placeholder={activeSessionId ? t("input.placeholder") : t("input.noSessionPlaceholder")}
             disabled={!activeSessionId}
             rows={1}
             className="w-full block border outline-none resize-none transition-all"
@@ -206,7 +208,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             style={{ padding: "9px 18px", minHeight: 40, background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.14)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
-          >Cancel</button>
+          >{t("common.cancel")}</button>
         ) : (
           <button
             onClick={handleGenerate}
@@ -225,7 +227,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "none";
             }}
-          >Generate</button>
+          >{t("input.generate")}</button>
         )}
       </div>
 
@@ -247,7 +249,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
                 Promise.all([store.fetchSessions(), store.selectSession(activeSessionId)]);
               },
               (_code, msg) => {
-                reportError(msg || "生成失败，请检查 API 设置或网络连接");
+                reportError(msg || t("error.generateFailed"));
               }
             );
           }}
