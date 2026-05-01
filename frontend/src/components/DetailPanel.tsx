@@ -63,7 +63,7 @@ export default function DetailPanel() {
   };
 
   const handleCopyPrompts = () => {
-    const text = selectedImages.map((img) => `[Step ${img.step}] ${img.prompt}`).join("\n\n");
+    const text = selectedImages.map((img) => `[${t("gallery.step", { step: img.step })}] ${img.prompt}`).join("\n\n");
     navigator.clipboard.writeText(text);
   };
 
@@ -107,8 +107,8 @@ export default function DetailPanel() {
             <div><div style={labelStyle}>{t("detail.prompt")}</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)" }}>{singleImage!.prompt}</div></div>
             {singleImage!.revised_prompt && <div><div style={labelStyle}>{t("detail.revisedPrompt")}</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)" }}>{singleImage!.revised_prompt}</div></div>}
             <div className="flex gap-4">
-              {[{ label: t("detail.size"), value: singleImage!.size }, { label: t("detail.quality"), value: singleImage!.quality }, { label: t("detail.format"), value: singleImage!.output_format }].map(({ label, value }) => (
-                <div key={label} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
+              {[{ key: "size", label: t("detail.size"), value: singleImage!.size }, { key: "quality", label: t("detail.quality"), value: singleImage!.quality }, { key: "format", label: t("detail.format"), value: singleImage!.output_format }].map(({ key, label, value }) => (
+                <div key={key} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
               ))}
             </div>
             <div><div style={labelStyle}>{t("detail.created")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{new Date(singleImage!.created_at).toLocaleString()}</div></div>
@@ -121,7 +121,7 @@ export default function DetailPanel() {
             </div>
             <div className="flex gap-4">
               <div className="flex-1"><div style={labelStyle}>{t("detail.steps")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{selectedImages.map((img) => img.step).join(", ")}</div></div>
-              <div className="flex-1"><div style={labelStyle}>{t("detail.format")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{(() => { const v = getCommonValue(selectedImages, "output_format"); return v === "Mixed" ? t("detail.mixed") : v; })()}</div></div>
+              <div className="flex-1"><div style={labelStyle}>{t("detail.format")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{(() => { const raw = getCommonValue(selectedImages, "output_format"); const formatValue = raw === "Mixed" ? t("detail.mixed") : raw; return formatValue; })()}</div></div>
             </div>
             <div><div style={labelStyle}>{t("detail.prompts")}</div>
               <div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)", maxHeight: 120, overflowY: "auto" }}>

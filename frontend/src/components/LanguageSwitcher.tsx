@@ -7,7 +7,7 @@ const LANGUAGES = [
 ] as const;
 
 export default function LanguageSwitcher() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -33,6 +33,7 @@ export default function LanguageSwitcher() {
     <div ref={ref} style={{ position: "relative" }}>
       <button
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
         className="flex items-center justify-center rounded-lg transition-colors"
         style={{ width: 34, height: 34, color: "var(--muted)", position: "relative" }}
         onMouseEnter={(e) => {
@@ -43,7 +44,9 @@ export default function LanguageSwitcher() {
           e.currentTarget.style.background = "none";
           e.currentTarget.style.color = "var(--muted)";
         }}
-        title={i18n.t("topbar.language")}
+        title={t("topbar.language")}
+        aria-expanded={open}
+        aria-haspopup="true"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10" />
@@ -72,6 +75,7 @@ export default function LanguageSwitcher() {
 
       {open && (
         <div
+          role="menu"
           style={{
             position: "absolute",
             top: "100%",
@@ -86,7 +90,6 @@ export default function LanguageSwitcher() {
             padding: 4,
           }}
         >
-          {/* 三角箭头 */}
           <div
             style={{
               position: "absolute",
@@ -105,7 +108,10 @@ export default function LanguageSwitcher() {
             return (
               <div
                 key={lang.code}
+                role="menuitem"
+                tabIndex={0}
                 onClick={() => handleChange(lang.code)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleChange(lang.code); }}
                 className="flex items-center gap-2.5 rounded-md cursor-pointer transition-colors"
                 style={{
                   padding: "8px 12px",
