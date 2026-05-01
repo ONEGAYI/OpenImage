@@ -5,6 +5,22 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.0] - 2026-05-01
+
+### 新功能
+
+- **图片比例/尺寸选择**：完整的比例/尺寸控制管线，支持 3 种比例（1:1、16:9、9:16）× 3 种尺寸档位（1K、2K、4K）
+  - 后端 SIZE_TABLE 定义 9 种组合的像素尺寸（边长均为 16 的倍数，满足 gpt-image-2 要求），`resolve_size()` 映射抽象参数为像素字符串，`detect_closest_ratio()` 从图片尺寸检测最接近比例
+  - 前端 RatioSelector Popover：工具栏触发按钮 + 向上弹出选单，比例区含形状图标，尺寸区纯文字按钮，选中态 coral 高亮，点击外部自动关闭
+  - generationStore 使用字面量联合类型管理 aspectRatio/imageSize 状态，`startGeneration` 自动构造 `params.size` 传递给 API
+- **Inpaint 自动比例锁定**：Inpaint 端点自动从源图尺寸检测最接近比例并计算输出像素尺寸，保证蒙版坐标不变形
+
+### 其他改进
+
+- 新增 `scripts/clean.py` 构建产物清理脚本，支持清理 Python/Node/Tauri 三套构建管线中间产物（--safe 保留 Rust target、--dry-run 预览）
+- inpaint.py 添加显式内存释放（`del` + `close()`），避免 SSE 长连接期间冗余占用
+- RatioSelector 提取公共样式常量，消除重复代码
+
 ## [1.1.0] - 2026-04-30
 
 ### 新功能
@@ -104,6 +120,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.2.0]: https://github.com/user/OpenImage/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/user/OpenImage/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/user/OpenImage/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/user/OpenImage/releases/tag/v1.0.0
