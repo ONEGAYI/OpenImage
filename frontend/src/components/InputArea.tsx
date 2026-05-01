@@ -151,7 +151,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
         <button
           onClick={handleAttach} disabled={isGenerating}
-          className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors disabled:opacity-50 cursor-pointer"
+          className="flex self-center items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors disabled:opacity-50 cursor-pointer"
           style={{ color: "var(--muted)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
@@ -163,7 +163,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         {onOpenSettings && (
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors cursor-pointer"
+            className="flex self-center items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors cursor-pointer"
             style={{ color: "var(--muted)" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--muted)"; }}
