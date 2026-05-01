@@ -175,7 +175,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         )}
         <RatioSelector />
         <span className="flex-1" />
-        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>Ctrl+Enter</span>
+        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>Ctrl+Enter to send</span>
       </div>
 
       <div className="flex gap-2 items-end">
