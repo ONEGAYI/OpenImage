@@ -27,6 +27,25 @@ class GenerateParams(BaseModel):
     output_format: str = "png"
 
 
+SIZE_TABLE: dict[str, dict[str, str]] = {
+    "1:1": {"1K": "1024x1024", "2K": "2048x2048", "4K": "2880x2880"},
+    "16:9": {"1K": "1536x1024", "2K": "2048x1152", "4K": "3840x2160"},
+    "9:16": {"1K": "1024x1536", "2K": "1152x2048", "4K": "2160x3840"},
+}
+
+
+def resolve_size(aspect_ratio: str, image_size: str) -> str:
+    """将比例+档位映射为像素尺寸字符串（如 "1536x1024"）"""
+    return SIZE_TABLE[aspect_ratio][image_size]
+
+
+def detect_closest_ratio(width: int, height: int) -> str:
+    """从像素尺寸检测最接近的支持比例"""
+    actual = width / height
+    supported = {"1:1": 1.0, "16:9": 16 / 9, "9:16": 9 / 16}
+    return min(supported, key=lambda k: abs(actual - supported[k]))
+
+
 class GenerateRequest(BaseModel):
     session_id: str
     prompt: str
