@@ -11,7 +11,6 @@ def _setup_logging(base_dir: Path) -> None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "backend.log"
 
-    # 超过 2MB 清空，避免无限增长
     try:
         if log_file.stat().st_size > 2_000_000:
             log_file.write_text("")
@@ -30,7 +29,7 @@ def _setup_logging(base_dir: Path) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="OpenImage Backend Server")
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--base-dir", type=str, default=None)
     args = parser.parse_args()
 
@@ -46,6 +45,14 @@ def main():
         from src.core.config import get_base_dir
         resolved = Path(args.base_dir) if args.base_dir else get_base_dir()
 
+    from src.core.port import find_free_port, write_port_file
+
+    actual_port = args.port or find_free_port()
+
+    # 非 frozen 模式（开发环境）写端口文件供 Vite 读取
+    if not getattr(sys, "frozen", False):
+        write_port_file(actual_port)
+
     try:
         import uvicorn
         from src.server import create_app
@@ -57,7 +64,7 @@ def main():
         uvicorn.run(
             create_app(resolved),
             host="127.0.0.1",
-            port=args.port,
+            port=actual_port,
             log_level="info",
             log_config={
                 "version": 1,
