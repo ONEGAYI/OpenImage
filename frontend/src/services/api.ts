@@ -8,12 +8,37 @@ import type {
   InpaintCompleted,
 } from "../types";
 
-export const BASE_URL = import.meta.env.DEV 
-  ? "http://localhost:8765"
-  : "http://127.0.0.1:8765";
+// --- Base URL 管理 ---
+
+let cachedBaseUrl: string | null = null;
+const isTauri = "__TAURI_INTERNALS__" in window;
+
+/**
+ * 初始化后端 base URL。
+ * Tauri 模式：invoke("backend_url") 获取完整 URL。
+ * Web 模式：返回空字符串（走 Vite proxy 相对路径）。
+ * 必须在任何 API 调用之前调用。
+ */
+export async function initBaseUrl(): Promise<void> {
+  if (isTauri) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    cachedBaseUrl = await invoke<string>("backend_url");
+  } else {
+    cachedBaseUrl = "";
+  }
+}
+
+function getBaseUrl(): string {
+  if (cachedBaseUrl === null) {
+    throw new Error("initBaseUrl() must be called before using API");
+  }
+  return cachedBaseUrl;
+}
+
+// --- HTTP helpers ---
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${getBaseUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
@@ -69,7 +94,7 @@ export async function getImage(id: string): Promise<Image> {
 }
 
 export function getImageFileUrl(id: string): string {
-  return `${BASE_URL}/api/images/${id}/file`;
+  return `${getBaseUrl()}/api/images/${id}/file`;
 }
 
 export async function deleteImage(id: string): Promise<void> {
@@ -139,7 +164,7 @@ export function generateImage(
   onCompleted: (data: GenerateCompleted) => void,
   onError: (code: string, message: string) => void
 ): AbortController {
-  return connectSSE(`${BASE_URL}/api/generate`, req, (event, data) => {
+  return connectSSE(`${getBaseUrl()}/api/generate`, req, (event, data) => {
     if (event === "partial_image") onPartial((data as { index: number; b64_json: string }).index, (data as { index: number; b64_json: string }).b64_json);
     else if (event === "completed") onCompleted(data as GenerateCompleted);
     else if (event === "error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
@@ -154,7 +179,7 @@ export function inpaintImage(
   onCompleted: (data: InpaintCompleted) => void,
   onError: (code: string, message: string) => void
 ): AbortController {
-  return connectSSE(`${BASE_URL}/api/inpaint`, req, (event, data) => {
+  return connectSSE(`${getBaseUrl()}/api/inpaint`, req, (event, data) => {
     if (event === "completed") onCompleted(data as InpaintCompleted);
     else if (event === "error" || event === "network_error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
   });
