@@ -5,6 +5,36 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.4.0] - 2026-05-03
+
+### 新功能
+
+- **动态端口分配**：消除前后端硬编码端口依赖，改为运行时自动分配空闲端口
+  - 后端新增 `port.py` 工具模块（find_free_port + 端口文件读写），cli.py 和 entry.py 支持 port=0 自动分配
+  - Rust 侧启动时动态分配端口，通过 --port 传递给 sidecar，前端自动发现后端地址
+  - api.ts 移除硬编码 BASE_URL，改用 initBaseUrl() + getBaseUrl() 动态获取后端地址
+  - Vite 开发服务器动态端口，/api 代理自动转发到后端实际端口
+
+- **Inpaint 参考图附件**：蒙版重绘时支持附加参考图片，为生成提供视觉指导
+  - MaskEditor 新增参考图 UI：缩略图预览、拖拽/粘贴上传、移除按钮
+  - InputArea、DetailPanel 两个入口均支持传递参考图给 inpaint API
+  - client.py 三种模式（responses/images/chat）inpaint 方法统一支持 reference_images 参数
+  - 新增 file.ts 图片文件处理工具模块
+
+- **一键启动开发环境**：新增 scripts/dev.sh（macOS/Linux）和 scripts/dev.ps1（Windows），一键同时启动前后端开发服务器
+
+### Bug 修复
+
+- 修复详情栏提示词在长文本时无限撑开且丢失换行格式的问题
+- 修复 Images API 模式下用户上传的附件图片被忽略的问题
+- 改进代理超时错误提示，添加 HTTP 5xx 自动重试机制
+- 修复 Web 模式 cleanup 函数丢失和 isTauri 重复定义的问题
+
+### 其他改进
+
+- 添加分辨率设置不生效的诊断警告和用户提示（中转代理压价限制，暂不支持高分辨率）
+- 代码审查修复：消除重复定义、修正类型注解和效率问题
+
 ## [1.3.2] - 2026-05-02
 
 ### 新功能
@@ -168,6 +198,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.4.0]: https://github.com/user/OpenImage/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/user/OpenImage/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/user/OpenImage/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/user/OpenImage/compare/v1.2.0...v1.3.0
