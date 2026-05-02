@@ -84,6 +84,7 @@
   "ratio.tooltip": "Ratio & Size",
   "ratio.ratio": "Ratio",
   "ratio.size": "Size",
+  "ratio.sizeWarning": "This resolution may not be supported by the current API provider. Actual output may differ.",
 
   "mask.title": "Inpaint Editor",
   "mask.clear": "Clear",

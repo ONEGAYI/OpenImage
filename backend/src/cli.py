@@ -85,6 +85,16 @@ def serve(
     uvicorn.run(create_app(resolved), host="127.0.0.1", port=actual_port)
 
 
+def _validate_size(size: str) -> None:
+    """验证 size 参数是否在 API 标准支持列表中"""
+    supported = {"1024x1024", "1536x1024", "1024x1536"}
+    if size not in supported:
+        console.print(
+            f"[yellow]⚠ Size '{size}' 不在标准支持列表 {sorted(supported)} 中，"
+            f"API 可能忽略此参数。[/yellow]"
+        )
+
+
 async def _load_client(db):
     """从数据库加载设置并创建 ImageClient，失败时退出"""
     from src.core.client import ImageClient
@@ -124,6 +134,7 @@ def generate(
     from src.core.database import Database
 
     async def _run():
+        _validate_size(size)
         config = Config(get_base_dir())
         config.ensure_dirs()
         db = Database(config)
@@ -163,6 +174,7 @@ def edit(
     from src.core.database import Database
 
     async def _run():
+        _validate_size(size)
         config = Config(get_base_dir())
         config.ensure_dirs()
         db = Database(config)

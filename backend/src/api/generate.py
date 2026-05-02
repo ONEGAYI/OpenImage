@@ -36,6 +36,8 @@ SIZE_TABLE: dict[str, dict[str, str]] = {
     "9:16": {"1K": "1024x1536", "2K": "1152x2048", "4K": "2160x3840"},
 }
 
+_SUPPORTED_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
+
 
 def resolve_size(aspect_ratio: str, image_size: str) -> str:
     """将比例+档位映射为像素尺寸字符串（如 "1536x1024"）"""
@@ -184,6 +186,8 @@ async def generate(body: GenerateRequest, request: Request):
     )
 
     params = body.params or GenerateParams()
+    if params.size not in _SUPPORTED_SIZES:
+        logger.warning("Size '%s' not in supported set %s, API may silently ignore it", params.size, _SUPPORTED_SIZES)
     images = [img.model_dump(exclude_none=True) for img in body.images if img.type == "base64"]
 
     client = request.app.state.client

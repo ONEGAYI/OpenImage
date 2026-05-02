@@ -203,6 +203,7 @@ export default function RatioSelector() {
                   <button
                     key={tier}
                     onClick={() => setImageSize(tier)}
+                    title={tier !== "1K" ? t("ratio.sizeWarning") : undefined}
                     style={{
                       ...optionBtn(selected),
                       flexDirection: "row",
