@@ -1,59 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useToastStore } from "../stores/toastStore";
 
 export default function ToastContainer() {
-  const toasts = useToastStore((s) => s.toasts);
+  const toast = useToastStore((s) => s.toast);
   const dismissToast = useToastStore((s) => s.dismissToast);
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 24,
-        left: "50%",
-        transform: "translateX(-50%)",
-        zIndex: 10000,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 8,
-        pointerEvents: "none",
-      }}
-    >
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} id={toast.id} message={toast.message} onDismiss={dismissToast} />
-      ))}
-    </div>
-  );
+  return toast ? <ToastItem key={toast.id} message={toast.message} onDismiss={dismissToast} /> : null;
 }
 
-function ToastItem({ id, message, onDismiss }: { id: string; message: string; onDismiss: (id: string) => void }) {
+function ToastItem({ message, onDismiss }: { message: string; onDismiss: () => void }) {
   const [visible, setVisible] = useState(false);
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
+    return () => {
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
+    };
   }, []);
 
   return (
     <div
       onClick={() => {
         setVisible(false);
-        setTimeout(() => onDismiss(id), 150);
+        dismissTimerRef.current = setTimeout(onDismiss, 150);
       }}
       style={{
+        position: "fixed",
+        bottom: 24,
+        left: "50%",
+        transform: visible ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(20px)",
+        zIndex: 10000,
         padding: "10px 16px",
         borderRadius: 8,
         background: "rgba(0,0,0,0.75)",
         color: "#fff",
         fontSize: 14,
         maxWidth: 400,
-        whiteSpace: "nowrap" as const,
+        whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
         cursor: "pointer",
         pointerEvents: "auto",
         opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(20px)",
         transition: "opacity 150ms ease, transform 200ms ease",
       }}
     >
