@@ -94,6 +94,9 @@
   "mask.rectangle": "矩形",
   "mask.eraser": "橡皮擦",
   "mask.fit": "适配",
+  "mask.referenceImages": "参考图",
+  "mask.addReference": "添加参考图",
+  "mask.imagesModeWarning": "Images API 模式下参考图可能不被支持，如遇错误请移除参考图",
   "toast.imageSaved": "已保存图片 {{name}}",
   "toast.imagesSaved": "已保存 {{count}} 张图片",
 

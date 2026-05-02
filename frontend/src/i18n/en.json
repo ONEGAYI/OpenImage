@@ -94,6 +94,9 @@
   "mask.rectangle": "Rectangle",
   "mask.eraser": "Eraser",
   "mask.fit": "Fit",
+  "mask.referenceImages": "References",
+  "mask.addReference": "Add Reference",
+  "mask.imagesModeWarning": "Reference images may not be supported in Images API mode. Remove them if errors occur.",
   "toast.imageSaved": "Image saved: {{name}}",
   "toast.imagesSaved": "{{count}} images saved",
 
