@@ -108,8 +108,8 @@ export default function DetailPanel() {
         {isSingle ? (
           <>
             <div><div style={labelStyle}>{t("detail.step")}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{singleImage!.step}</div></div>
-            <div><div style={labelStyle}>{t("detail.prompt")}</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)" }}>{singleImage!.prompt}</div></div>
-            {singleImage!.revised_prompt && <div><div style={labelStyle}>{t("detail.revisedPrompt")}</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)" }}>{singleImage!.revised_prompt}</div></div>}
+            <div><div style={labelStyle}>{t("detail.prompt")}</div><div className="text-[13px] leading-[1.6]" style={{ color: "var(--muted)", maxHeight: "6.4em", overflowY: "auto", whiteSpace: "pre-line" }}>{singleImage!.prompt}</div></div>
+            {singleImage!.revised_prompt && <div><div style={labelStyle}>{t("detail.revisedPrompt")}</div><div className="text-[13px] leading-[1.6] italic" style={{ color: "var(--muted)", maxHeight: "6.4em", overflowY: "auto", whiteSpace: "pre-line" }}>{singleImage!.revised_prompt}</div></div>}
             <div className="flex gap-4">
               {[{ key: "size", label: t("detail.size"), value: singleImage!.size }, { key: "quality", label: t("detail.quality"), value: singleImage!.quality }, { key: "format", label: t("detail.format"), value: singleImage!.output_format }].map(({ key, label, value }) => (
                 <div key={key} className="flex-1"><div style={labelStyle}>{label}</div><div className="text-[13px]" style={{ color: "var(--fg)" }}>{value}</div></div>
