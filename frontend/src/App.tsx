@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { initBaseUrl } from "./services/api";
+import { initBaseUrl, isTauri } from "./services/api";
 import Sidebar from "./components/Sidebar";
 import Gallery from "./components/Gallery";
 import InputArea from "./components/InputArea";
@@ -21,7 +21,7 @@ function App() {
       setError(t("app.backendTimeout"));
     }, 30000);
 
-    if ("__TAURI_INTERNALS__" in window) {
+    if (isTauri) {
       const unlistenReady = listen("backend-ready", async () => {
         try {
           await initBaseUrl();
@@ -44,9 +44,8 @@ function App() {
         clearTimeout(timeout);
       };
     } else {
-      // Web 模式：baseUrl 为空字符串（Vite proxy），直接用相对路径 poll
+      let active = true;
       initBaseUrl().then(() => {
-        let active = true;
         const poll = async () => {
           while (active) {
             try {
@@ -61,11 +60,11 @@ function App() {
           }
         };
         poll();
-        return () => {
-          active = false;
-          clearTimeout(timeout);
-        };
       });
+      return () => {
+        active = false;
+        clearTimeout(timeout);
+      };
     }
   }, []);
 

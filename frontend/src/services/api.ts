@@ -11,7 +11,7 @@ import type {
 // --- Base URL 管理 ---
 
 let cachedBaseUrl: string | null = null;
-const isTauri = "__TAURI_INTERNALS__" in window;
+export const isTauri = "__TAURI_INTERNALS__" in window;
 
 /**
  * 初始化后端 base URL。
