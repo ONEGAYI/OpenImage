@@ -1,4 +1,5 @@
 # backend/src/core/client.py
+import asyncio
 import base64
 import re
 import uuid
@@ -7,6 +8,10 @@ from typing import Any
 
 import httpx
 from openai import AsyncOpenAI
+
+# 502/503 是网关瞬时抖动，524 是 Cloudflare 超时（可能因负载自愈）
+# 其他 Cloudflare 5xx（520-523/525-527）通常反映配置或协议问题，不重试
+_RETRYABLE_STATUS = frozenset({502, 503, 524})
 
 API_MODE_RESPONSES = "responses"
 API_MODE_IMAGES = "images"
@@ -49,10 +54,22 @@ class ImageClient:
     def _check_response(resp: httpx.Response, endpoint: str) -> None:
         """检查 HTTP 响应，提供详细错误信息"""
         if resp.is_error:
-            raise ValueError(
-                f"{endpoint} 请求失败 (HTTP {resp.status_code}): "
-                f"{resp.text[:500] or '(空响应)'}"
-            )
+            code = resp.status_code
+            # 524 单独处理：提供具体操作建议，而非通用 Cloudflare 错误提示
+            if code == 524:
+                raise ValueError(
+                    f"{endpoint} 请求超时 (HTTP 524)：代理服务器等待上游 API 响应超时。\n"
+                    f"这通常发生在请求包含多张参考图或复杂提示词时。\n"
+                    f"建议：简化提示词、减少参考图数量，或更换超时更长的 API 代理。"
+                )
+            # 其余 Cloudflare 5xx 不重试：通常是配置/协议问题，非瞬时
+            if 520 <= code <= 527:
+                raise ValueError(
+                    f"{endpoint} 请求失败 (HTTP {code})：代理服务端返回 Cloudflare 错误，"
+                    f"这通常是代理服务的临时问题，可以稍后重试。"
+                )
+            body = resp.text[:500] or "(空响应)"
+            raise ValueError(f"{endpoint} 请求失败 (HTTP {code}): {body}")
         if not resp.text:
             raise ValueError(
                 f"{endpoint} 返回空响应 (HTTP {resp.status_code})"
@@ -65,6 +82,18 @@ class ImageClient:
                 f"请确认 Base URL 包含正确的路径前缀（如 /v1）。"
                 f"响应前 200 字符: {resp.text[:200]!r}"
             )
+
+    async def _post(
+        self, url: str, *, endpoint: str, max_retries: int = 1, **kwargs
+    ) -> httpx.Response:
+        """POST 请求，对瞬时错误（502/503/524）自动重试"""
+        for attempt in range(max_retries + 1):
+            resp = await self._http.post(url, **kwargs)
+            if resp.status_code not in _RETRYABLE_STATUS or attempt >= max_retries:
+                self._check_response(resp, endpoint)
+                return resp
+            await asyncio.sleep(2 ** attempt * 2)
+        raise RuntimeError("_post: unreachable")  # defensive
 
     @classmethod
     def from_settings(cls, settings: dict) -> "ImageClient | None":
@@ -178,12 +207,12 @@ class ImageClient:
             **self._extract_params(params or {}),
         }
 
-        resp = await self._http.post(
+        resp = await self._post(
             f"{self._base_url}/images/generations",
+            endpoint="Images API",
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        self._check_response(resp, "Images API")
         return await self._parse_images_api_item(resp.json()["data"][0])
 
     async def _edit_via_images(
@@ -204,13 +233,13 @@ class ImageClient:
         }
         data.update(self._extract_params(params or {}))
 
-        resp = await self._http.post(
+        resp = await self._post(
             f"{self._base_url}/images/edits",
+            endpoint="Images Edits API",
             data=data,
             files=files,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        self._check_response(resp, "Images Edits API")
         return await self._parse_images_api_item(resp.json()["data"][0])
 
     # ---- Chat Completions API (httpx) ----
@@ -253,12 +282,12 @@ class ImageClient:
             }],
         }
 
-        resp = await self._http.post(
+        resp = await self._post(
             f"{self._base_url}/chat/completions",
+            endpoint="Chat API",
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        self._check_response(resp, "Chat API")
         try:
             text = resp.json()["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
@@ -317,13 +346,13 @@ class ImageClient:
         extra_params = self._extract_params(params or {})
         data.update(extra_params)
 
-        resp = await self._http.post(
+        resp = await self._post(
             f"{self._base_url}/images/edits",
+            endpoint="Images Inpaint API",
             data=data,
             files=files,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        self._check_response(resp, "Images Edits API")
         return await self._parse_images_api_item(resp.json()["data"][0])
 
     async def _inpaint_via_responses(
@@ -406,12 +435,12 @@ class ImageClient:
             }],
         }
 
-        resp = await self._http.post(
+        resp = await self._post(
             f"{self._base_url}/chat/completions",
+            endpoint="Chat Inpaint API",
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        self._check_response(resp, "Chat Inpaint API")
         try:
             text = resp.json()["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
