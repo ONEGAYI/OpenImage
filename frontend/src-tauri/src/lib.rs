@@ -12,15 +12,18 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-struct Backend(Mutex<Option<CommandChild>>);
-
-const BACKEND_PORT: u16 = 8765;
 #[cfg(target_os = "windows")]
 const BACKEND_PROCESS: &str = "openimage-backend.exe";
 
+struct Backend(Mutex<Option<CommandChild>>);
+
+struct AppState {
+    backend_port: u16,
+}
+
 #[tauri::command]
-fn backend_url() -> String {
-    format!("http://127.0.0.1:{}", BACKEND_PORT)
+fn backend_url(state: tauri::State<AppState>) -> String {
+    format!("http://127.0.0.1:{}", state.backend_port)
 }
 
 pub fn run() {
@@ -29,6 +32,17 @@ pub fn run() {
         .manage(Backend(Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![backend_url])
         .setup(|app| {
+            // 分配空闲端口
+            let port = {
+                let listener = std::net::TcpListener::bind("127.0.0.1:0")
+                    .expect("Failed to find free port");
+                let port = listener.local_addr().unwrap().port();
+                drop(listener);
+                port
+            };
+
+            app.manage(AppState { backend_port: port });
+
             let app_handle = app.handle().clone();
 
             let data_dir = std::env::current_exe()?
@@ -38,6 +52,7 @@ pub fn run() {
             std::fs::create_dir_all(&data_dir)?;
 
             let data_dir_str = data_dir.to_string_lossy().to_string();
+            let port_str = port.to_string();
 
             // Heavy work in background so the window shows the loading screen immediately.
             tauri::async_runtime::spawn(async move {
@@ -56,7 +71,7 @@ pub fn run() {
                     .shell()
                     .sidecar("openimage-backend")
                     .expect("Failed to resolve openimage-backend sidecar")
-                    .args(["--base-dir", &data_dir_str]);
+                    .args(["--port", &port_str, "--base-dir", &data_dir_str]);
 
                 let (mut rx, child) = sidecar.spawn().expect("Failed to spawn backend sidecar");
 
@@ -103,7 +118,7 @@ pub fn run() {
                 let health_handle = app_handle.clone();
                 let healthy_flag2 = healthy.clone();
                 tauri::async_runtime::spawn(async move {
-                    let url = format!("http://127.0.0.1:{}/api/settings", BACKEND_PORT);
+                    let url = format!("http://127.0.0.1:{}/api/settings", port);
                     let client = reqwest::Client::builder()
                         .timeout(Duration::from_secs(2))
                         .build()
@@ -143,8 +158,6 @@ pub fn run() {
                         }
                     }
                 }
-                // PyInstaller onefile creates bootloader + Python subprocess;
-                // child.kill() only hits the bootloader — taskkill /T cleans the tree.
                 #[cfg(target_os = "windows")]
                 let _ = std::process::Command::new("taskkill")
                     .args(["/F", "/T", "/IM", BACKEND_PROCESS])
