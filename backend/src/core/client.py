@@ -314,13 +314,14 @@ class ImageClient:
         source_image_b64: str,
         mask_b64: str,
         params: dict[str, Any] | None = None,
+        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
         """根据 API 模式路由 inpainting 请求"""
         if self.api_mode == API_MODE_IMAGES:
-            return await self._inpaint_via_images(prompt, source_image_b64, mask_b64, params)
+            return await self._inpaint_via_images(prompt, source_image_b64, mask_b64, params, reference_images)
         if self.api_mode == API_MODE_CHAT:
-            return await self._inpaint_via_chat(prompt, source_image_b64, mask_b64, params)
-        return await self._inpaint_via_responses(prompt, source_image_b64, mask_b64, params)
+            return await self._inpaint_via_chat(prompt, source_image_b64, mask_b64, params, reference_images)
+        return await self._inpaint_via_responses(prompt, source_image_b64, mask_b64, params, reference_images)
 
     async def _inpaint_via_images(
         self,
@@ -328,8 +329,9 @@ class ImageClient:
         source_image_b64: str,
         mask_b64: str,
         params: dict[str, Any] | None = None,
+        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
-        """Images API 原生 inpainting: POST /v1/images/edits"""
+        """Images API 原生 inpainting: POST /v1/images/edits（不支持额外参考图）"""
         source_bytes = base64.b64decode(source_image_b64)
         mask_bytes = base64.b64decode(mask_b64)
 
@@ -361,8 +363,9 @@ class ImageClient:
         source_image_b64: str,
         mask_b64: str,
         params: dict[str, Any] | None = None,
+        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
-        """Responses API inpainting: 原图 + 蒙版作为 input_image + 元 prompt"""
+        """Responses API inpainting: 原图 + 蒙版 + 参考图作为 input_image + 元 prompt"""
         content = [
             {
                 "type": "input_image",
@@ -372,11 +375,16 @@ class ImageClient:
                 "type": "input_image",
                 "image_url": f"data:image/png;base64,{mask_b64}",
             },
-            {
-                "type": "input_text",
-                "text": f"{_INPAINT_META_PROMPT} {prompt}",
-            },
         ]
+        for ref in (reference_images or []):
+            content.append({
+                "type": "input_image",
+                "image_url": f"data:{ref['media_type']};base64,{ref['data']}",
+            })
+        content.append({
+            "type": "input_text",
+            "text": f"{_INPAINT_META_PROMPT} {prompt}",
+        })
 
         tool_config: dict[str, Any] = {
             "type": "image_generation",
@@ -409,8 +417,9 @@ class ImageClient:
         source_image_b64: str,
         mask_b64: str,
         params: dict[str, Any] | None = None,
+        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
-        """Chat API inpainting: 原图 + 蒙版作为 image_url + 元 prompt"""
+        """Chat API inpainting: 原图 + 蒙版 + 参考图作为 image_url + 元 prompt"""
         content = [
             {
                 "type": "image_url",
@@ -420,11 +429,16 @@ class ImageClient:
                 "type": "image_url",
                 "image_url": {"url": f"data:image/png;base64,{mask_b64}"},
             },
-            {
-                "type": "text",
-                "text": f"{_INPAINT_META_PROMPT} {prompt}",
-            },
         ]
+        for ref in (reference_images or []):
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{ref['media_type']};base64,{ref['data']}"},
+            })
+        content.append({
+            "type": "text",
+            "text": f"{_INPAINT_META_PROMPT} {prompt}",
+        })
 
         payload: dict[str, Any] = {
             "model": self.model_name,
@@ -468,11 +482,12 @@ class ImageClient:
         history_images: list[str] | None = None,
         mask_b64: str | None = None,
         source_image_b64: str | None = None,
+        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
         # Inpainting 路由
         if mask_b64 and source_image_b64:
             return await self._generate_inpaint(
-                prompt, source_image_b64, mask_b64, params
+                prompt, source_image_b64, mask_b64, params, reference_images
             )
         # 原有路由
         if self.api_mode == API_MODE_CHAT:

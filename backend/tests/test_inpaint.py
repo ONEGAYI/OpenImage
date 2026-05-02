@@ -175,3 +175,113 @@ class TestInpaintAPI:
             mask_b64=_make_minimal_png_b64(),
         )
         assert req.reference_images is None
+
+
+class TestInpaintWithReferences:
+    """测试 client.py 三种 inpaint 模式下的参考图传递"""
+
+    @pytest.mark.asyncio
+    async def test_inpaint_with_references_via_responses(self):
+        """responses 模式 inpaint 应将参考图插入 content 数组"""
+        client = ImageClient(api_key="sk-test")
+
+        mock_resp = MagicMock()
+        mock_resp.id = "resp_ref"
+        mock_resp.output = [
+            MagicMock(type="image_generation_call", result="ref_result_b64", revised_prompt=None)
+        ]
+        mock_resp.usage = MagicMock(total_tokens=60)
+
+        ref_b64 = _make_minimal_png_b64()
+
+        with patch("src.core.client.AsyncOpenAI") as MockOpenAI:
+            mock_instance = MockOpenAI.return_value
+            mock_instance.responses = MagicMock()
+            mock_instance.responses.create = AsyncMock(return_value=mock_resp)
+            client._openai = mock_instance
+
+            result = await client.generate(
+                prompt="change style",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+                reference_images=[{"data": ref_b64, "media_type": "image/png"}],
+            )
+
+        assert result.image_b64 == "ref_result_b64"
+
+        call_kwargs = mock_instance.responses.create.call_args[1]
+        input_content = call_kwargs["input"][0]["content"]
+        # 4 个元素：原图 + 蒙版 + 参考图 + 文本
+        assert len(input_content) == 4
+        assert input_content[0]["type"] == "input_image"  # source
+        assert input_content[1]["type"] == "input_image"  # mask
+        assert input_content[2]["type"] == "input_image"  # reference
+        assert input_content[3]["type"] == "input_text"    # prompt
+
+    @pytest.mark.asyncio
+    async def test_inpaint_with_references_via_chat(self):
+        """chat 模式 inpaint 应将参考图插入 content 数组"""
+        client = ImageClient(api_key="sk-test", api_mode=API_MODE_CHAT)
+
+        mock_response = MagicMock()
+        mock_response.is_error = False
+        mock_response.status_code = 200
+        mock_response.text = '{"choices":[{"message":{"content":"![img](http://example.com/result.png)"}}]}'
+        mock_response.headers = {"content-type": "application/json"}
+        mock_response.json.return_value = {"choices": [{"message": {"content": "![img](http://example.com/result.png)"}}]}
+
+        ref_b64 = _make_minimal_png_b64()
+
+        with patch.object(client._http, "post", new_callable=AsyncMock, return_value=mock_response) as mock_post, \
+             patch.object(client, "_download_as_b64", new_callable=AsyncMock, return_value="downloaded_b64"):
+            result = await client.generate(
+                prompt="style transfer",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+                reference_images=[{"data": ref_b64, "media_type": "image/png"}],
+            )
+
+        assert result.image_b64 == "downloaded_b64"
+
+        call_kwargs = mock_post.call_args[1]
+        content = call_kwargs["json"]["messages"][0]["content"]
+        # 4 个元素：source + mask + reference + text
+        assert len(content) == 4
+        assert content[2]["type"] == "image_url"  # reference
+
+    @pytest.mark.asyncio
+    async def test_inpaint_without_references_still_works(self):
+        """不传参考图时 inpaint 行为不变"""
+        client = ImageClient(api_key="sk-test")
+
+        mock_resp = MagicMock()
+        mock_resp.id = "resp_no_ref"
+        mock_resp.output = [
+            MagicMock(type="image_generation_call", result="no_ref_b64", revised_prompt=None)
+        ]
+        mock_resp.usage = MagicMock(total_tokens=40)
+
+        with patch("src.core.client.AsyncOpenAI") as MockOpenAI:
+            mock_instance = MockOpenAI.return_value
+            mock_instance.responses = MagicMock()
+            mock_instance.responses.create = AsyncMock(return_value=mock_resp)
+            client._openai = mock_instance
+
+            result = await client.generate(
+                prompt="simple inpaint",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+            )
+
+        assert result.image_b64 == "no_ref_b64"
+
+        call_kwargs = mock_instance.responses.create.call_args[1]
+        input_content = call_kwargs["input"][0]["content"]
+        # 3 个元素（无参考图）
+        assert len(input_content) == 3
