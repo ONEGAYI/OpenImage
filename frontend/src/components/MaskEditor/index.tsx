@@ -4,7 +4,8 @@ import { useMaskCanvas } from "./useMaskCanvas";
 import MaskCanvas from "./MaskCanvas";
 import ToolBar from "./ToolBar";
 import { getImageFileUrl, getSettings } from "../../services/api";
-import type { MaskImageSource, AttachedFile } from "../../types";
+import { fileToAttachment } from "../../utils/file";
+import type { MaskImageSource, AttachedFile, SettingsResponse } from "../../types";
 
 interface MaskEditorProps {
   source: MaskImageSource;
@@ -25,7 +26,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
   const [generating, setGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [references, setReferences] = useState<AttachedFile[]>(initialReferences ?? []);
-  const [apiMode, setApiMode] = useState<string>("responses");
+  const [apiMode, setApiMode] = useState<SettingsResponse["api_mode"]>("responses");
   const referenceFileRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -57,17 +58,9 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
   const handleAddReference = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue;
-      const data = await fileToBase64(file);
-      setReferences((prev) => [...prev, {
-        id: crypto.randomUUID(),
-        name: file.name,
-        data,
-        media_type: file.type,
-        preview_url: `data:${file.type};base64,${data}`,
-      }]);
-    }
+    const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const newRefs = await Promise.all(imageFiles.map(fileToAttachment));
+    setReferences((prev) => [...prev, ...newRefs]);
     e.target.value = "";
   }, []);
 
@@ -204,7 +197,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
             <div
               key={ref.id}
               style={{
-                width: 32, height: 32, borderRadius: 4, overflow: "hidden",
+                width: 32, height: 32, borderRadius: 4,
                 border: "1px solid #3a3835", position: "relative", flexShrink: 0,
               }}
             >
@@ -300,16 +293,4 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
       </div>
     </div>
   );
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(",")[1]);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }

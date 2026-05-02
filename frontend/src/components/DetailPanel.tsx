@@ -258,7 +258,7 @@ export default function DetailPanel() {
               ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
               : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
             if (referenceImages.length > 0) {
-              req.reference_images = referenceImages;
+              req.reference_images = referenceImages.map(({ data, media_type }) => ({ data, media_type }));
             }
             inpaintImage(
               req,
