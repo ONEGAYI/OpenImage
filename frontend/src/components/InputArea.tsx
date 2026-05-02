@@ -238,8 +238,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
       {editingAttachment && activeSessionId && (
         <MaskEditor
           source={{ type: "attachment", attachmentId: editingAttachment.id, imageB64: editingAttachment.data }}
+          initialReferences={attachments.filter((a) => a.id !== editingAttachment.id)}
           onClose={() => setEditingAttachment(null)}
-          onGenerate={(maskB64, prompt, reportError) => {
+          onGenerate={(maskB64, prompt, referenceImages, reportError) => {
             const store = useSessionStore.getState();
             inpaintImage(
               {
@@ -247,6 +248,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
                 prompt,
                 source_image_b64: editingAttachment.data,
                 mask_b64: maskB64,
+                reference_images: referenceImages.length > 0 ? referenceImages : undefined,
               },
               () => {
                 setEditingAttachment(null);
