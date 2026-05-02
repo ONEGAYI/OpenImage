@@ -4,12 +4,14 @@ import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
 import MaskEditor from "./MaskEditor";
+import { useToastStore } from "../stores/toastStore";
 import type { Image, MaskImageSource } from "../types";
 
 export default function DetailPanel() {
   const { t } = useTranslation();
   const { images, selectedImageIds, activeSessionId, selectSession, fetchSessions, clearSelection } = useSessionStore();
   const { setPendingForkFrom } = useGenerationStore();
+  const showToast = useToastStore((s) => s.showToast);
   const [deleting, setDeleting] = useState(false);
   const [viewingImage, setViewingImage] = useState<Image | null>(null);
   const [buttonPage, setButtonPage] = useState(0);
@@ -43,6 +45,7 @@ export default function DetailPanel() {
     a.href = url;
     a.download = `openimage_step${singleImage.step}.png`;
     a.click();
+    showToast(t("toast.imageSaved", { name: a.download }));
   };
 
   const handleSaveAll = () => {
@@ -55,6 +58,7 @@ export default function DetailPanel() {
         a.click();
       }, i * 200);
     });
+    showToast(t("toast.imagesSaved", { count: selectedImages.length }));
   };
 
   const handleCopyPrompt = () => {
