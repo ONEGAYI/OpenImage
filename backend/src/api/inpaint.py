@@ -18,12 +18,18 @@ from src.api.generate import (
 router = APIRouter(tags=["inpaint"])
 
 
+class ReferenceImage(BaseModel):
+    data: str        # base64
+    media_type: str  # e.g. "image/png"
+
+
 class InpaintRequest(BaseModel):
     session_id: str
     prompt: str
     source_image_id: str | None = None
     source_image_b64: str | None = None
     mask_b64: str
+    reference_images: list[ReferenceImage] | None = None
     params: GenerateParams | None = None
 
 

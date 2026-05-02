@@ -146,3 +146,32 @@ class TestInpaintAPI:
         )
         assert req.source_image_b64 == b64
         assert req.source_image_id is None
+
+    def test_inpaint_request_with_reference_images(self):
+        """InpaintRequest 支持 reference_images 字段"""
+        from src.api.inpaint import InpaintRequest, ReferenceImage
+        b64 = _make_minimal_png_b64()
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="edit with reference",
+            source_image_b64=b64,
+            mask_b64=b64,
+            reference_images=[
+                ReferenceImage(data=b64, media_type="image/png"),
+                ReferenceImage(data=b64, media_type="image/jpeg"),
+            ],
+        )
+        assert req.reference_images is not None
+        assert len(req.reference_images) == 2
+        assert req.reference_images[0].media_type == "image/png"
+        assert req.reference_images[1].media_type == "image/jpeg"
+
+    def test_inpaint_request_reference_images_optional(self):
+        """reference_images 是可选字段，默认为 None"""
+        from src.api.inpaint import InpaintRequest
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="test",
+            mask_b64=_make_minimal_png_b64(),
+        )
+        assert req.reference_images is None
