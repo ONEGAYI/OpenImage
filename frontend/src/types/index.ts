@@ -71,6 +71,7 @@ export interface InpaintRequest {
   source_image_id?: string;
   source_image_b64?: string;
   mask_b64: string;
+  reference_images?: AttachedFile[];
   params?: GenerateParams;
 }
 
