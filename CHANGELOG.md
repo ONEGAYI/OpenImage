@@ -5,6 +5,21 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-05-02
+
+### 新功能
+
+- **Toast 通知系统**：操作反馈气泡提示，保存图片时显示成功通知
+  - 新增 Toast 组件（底部居中气泡，自动消失），toastStore 状态管理（单 Toast 模式 + Timer 生命周期清理）
+  - DetailPanel 保存图片操作触发 toast 提示
+  - 中英文 i18n 翻译
+
+### Bug 修复
+
+- 修复跨会话生成状态泄漏：会话 A 生图时其他会话不再错误显示 generating 图标
+  - generationStore 从单一全局 isGenerating 重构为 sessionGenerations Map，每会话独立状态
+  - Gallery、InputArea 使用 Zustand selector 细粒度订阅，清理未使用的辅助方法死代码
+
 ## [1.3.0] - 2026-05-01
 
 ### 新功能
@@ -135,6 +150,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.3.1]: https://github.com/user/OpenImage/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/user/OpenImage/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/user/OpenImage/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/user/OpenImage/compare/v1.0.1...v1.1.0
