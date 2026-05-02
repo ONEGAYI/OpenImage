@@ -39,6 +39,9 @@ Thumbs.db
 # Tauri codegen
 frontend/src-tauri/gen/
 
+# Dynamic port file
+frontend/.backend-port
+
 # Misc
 references/
 .superpowers/
