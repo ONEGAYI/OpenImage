@@ -482,6 +482,8 @@ class ImageClient:
         if self.api_mode == API_MODE_IMAGES:
             if history_images:
                 return await self._edit_via_images(prompt, history_images[0], params)
+            if images:
+                return await self._edit_via_images(prompt, images[0]["data"], params)
             return await self._generate_via_images(prompt, images, params)
         return await self._generate_via_responses(
             prompt, images, previous_response_id, params
