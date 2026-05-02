@@ -18,12 +18,18 @@ from src.api.generate import (
 router = APIRouter(tags=["inpaint"])
 
 
+class ReferenceImage(BaseModel):
+    data: str        # base64
+    media_type: str  # e.g. "image/png"
+
+
 class InpaintRequest(BaseModel):
     session_id: str
     prompt: str
     source_image_id: str | None = None
     source_image_b64: str | None = None
     mask_b64: str
+    reference_images: list[ReferenceImage] | None = None
     params: GenerateParams | None = None
 
 
@@ -94,6 +100,8 @@ async def inpaint(body: InpaintRequest, request: Request):
         try:
             yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
 
+            refs = [{"data": r.data, "media_type": r.media_type} for r in body.reference_images] if body.reference_images else None
+
             result = await client.generate(
                 prompt=body.prompt,
                 images=[],
@@ -102,6 +110,7 @@ async def inpaint(body: InpaintRequest, request: Request):
                 history_images=None,
                 mask_b64=body.mask_b64,
                 source_image_b64=source_b64,
+                reference_images=refs,
             )
 
             saved = await _save_generated_image(

@@ -3,21 +3,31 @@ import { useTranslation } from "react-i18next";
 import { useMaskCanvas } from "./useMaskCanvas";
 import MaskCanvas from "./MaskCanvas";
 import ToolBar from "./ToolBar";
-import { getImageFileUrl } from "../../services/api";
-import type { MaskImageSource } from "../../types";
+import { getImageFileUrl, getSettings } from "../../services/api";
+import { fileToAttachment } from "../../utils/file";
+import type { MaskImageSource, AttachedFile, SettingsResponse } from "../../types";
 
 interface MaskEditorProps {
   source: MaskImageSource;
   onClose: () => void;
-  onGenerate: (maskB64: string, prompt: string, reportError: (msg: string) => void) => void;
+  onGenerate: (
+    maskB64: string,
+    prompt: string,
+    referenceImages: AttachedFile[],
+    reportError: (msg: string) => void
+  ) => void;
+  initialReferences?: AttachedFile[];
 }
 
-export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorProps) {
+export default function MaskEditor({ source, onClose, onGenerate, initialReferences }: MaskEditorProps) {
   const { t } = useTranslation();
   const [prompt, setPrompt] = useState("");
   const [imageEl, setImageEl] = useState<HTMLImageElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [references, setReferences] = useState<AttachedFile[]>(initialReferences ?? []);
+  const [apiMode, setApiMode] = useState<SettingsResponse["api_mode"]>("responses");
+  const referenceFileRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const imageUrl =
@@ -27,6 +37,10 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
 
   const onGenerateRef = useRef(onGenerate);
   onGenerateRef.current = onGenerate;
+
+  useEffect(() => {
+    getSettings().then((s) => setApiMode(s.api_mode)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,16 +55,29 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
 
   const hook = useMaskCanvas(canvasRef, imageEl);
 
+  const handleAddReference = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    const newRefs = await Promise.all(imageFiles.map(fileToAttachment));
+    setReferences((prev) => [...prev, ...newRefs]);
+    e.target.value = "";
+  }, []);
+
+  const handleRemoveReference = useCallback((id: string) => {
+    setReferences((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
   const handleGenerate = useCallback(() => {
     const maskB64 = hook.exportMask();
     if (!maskB64 || !prompt.trim()) return;
     setGenerating(true);
     setErrorMsg(null);
-    onGenerateRef.current(maskB64, prompt.trim(), (msg: string) => {
+    onGenerateRef.current(maskB64, prompt.trim(), references, (msg: string) => {
       setGenerating(false);
       setErrorMsg(msg);
     });
-  }, [hook.exportMask, prompt]);
+  }, [hook.exportMask, prompt, references]);
 
   const sourceLabel =
     source.type === "generated"
@@ -155,6 +182,57 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
           </div>
         )}
 
+        {/* 参考图片区域 */}
+        <div style={{
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+          padding: "6px 20px",
+          background: "#1c1b18",
+          borderTop: "1px solid #252320",
+          minHeight: references.length > 0 ? 40 : 28,
+        }}>
+          <span style={{ fontSize: 10, color: "#a09d96", flexShrink: 0 }}>{t("mask.referenceImages")}</span>
+          {references.map((ref) => (
+            <div
+              key={ref.id}
+              style={{
+                width: 32, height: 32, borderRadius: 4,
+                border: "1px solid #3a3835", position: "relative", flexShrink: 0,
+              }}
+            >
+              <img src={ref.preview_url} alt={ref.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <button
+                onClick={() => handleRemoveReference(ref.id)}
+                style={{
+                  position: "absolute", top: -3, right: -3, width: 13, height: 13,
+                  background: "#c96442", borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 7, color: "white", border: "none", cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >✕</button>
+            </div>
+          ))}
+          <button
+            onClick={() => referenceFileRef.current?.click()}
+            style={{
+              width: 32, height: 32, border: "1px dashed #555", borderRadius: 4,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#777", fontSize: 14, cursor: "pointer", flexShrink: 0,
+              background: "transparent",
+            }}
+          >+</button>
+          <input
+            ref={referenceFileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleAddReference}
+            style={{ display: "none" }}
+          />
+        </div>
+
         {/* 底栏 Prompt */}
         <div
           style={{
@@ -186,6 +264,14 @@ export default function MaskEditor({ source, onClose, onGenerate }: MaskEditorPr
               }
             }}
           />
+          {apiMode === "images" && references.length > 0 && (
+            <span
+              style={{ fontSize: 12, color: "#a09d96", cursor: "help" }}
+              title={t("mask.imagesModeWarning")}
+            >
+              ⚠️
+            </span>
+          )}
           <button
             onClick={handleGenerate}
             disabled={!canSubmit}

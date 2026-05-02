@@ -146,3 +146,164 @@ class TestInpaintAPI:
         )
         assert req.source_image_b64 == b64
         assert req.source_image_id is None
+
+    def test_inpaint_request_with_reference_images(self):
+        """InpaintRequest 支持 reference_images 字段"""
+        from src.api.inpaint import InpaintRequest, ReferenceImage
+        b64 = _make_minimal_png_b64()
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="edit with reference",
+            source_image_b64=b64,
+            mask_b64=b64,
+            reference_images=[
+                ReferenceImage(data=b64, media_type="image/png"),
+                ReferenceImage(data=b64, media_type="image/jpeg"),
+            ],
+        )
+        assert req.reference_images is not None
+        assert len(req.reference_images) == 2
+        assert req.reference_images[0].media_type == "image/png"
+        assert req.reference_images[1].media_type == "image/jpeg"
+
+    def test_inpaint_request_reference_images_optional(self):
+        """reference_images 是可选字段，默认为 None"""
+        from src.api.inpaint import InpaintRequest
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="test",
+            mask_b64=_make_minimal_png_b64(),
+        )
+        assert req.reference_images is None
+
+
+class TestInpaintWithReferences:
+    """测试 client.py 三种 inpaint 模式下的参考图传递"""
+
+    @pytest.mark.asyncio
+    async def test_inpaint_with_references_via_responses(self):
+        """responses 模式 inpaint 应将参考图插入 content 数组"""
+        client = ImageClient(api_key="sk-test")
+
+        mock_resp = MagicMock()
+        mock_resp.id = "resp_ref"
+        mock_resp.output = [
+            MagicMock(type="image_generation_call", result="ref_result_b64", revised_prompt=None)
+        ]
+        mock_resp.usage = MagicMock(total_tokens=60)
+
+        ref_b64 = _make_minimal_png_b64()
+
+        with patch("src.core.client.AsyncOpenAI") as MockOpenAI:
+            mock_instance = MockOpenAI.return_value
+            mock_instance.responses = MagicMock()
+            mock_instance.responses.create = AsyncMock(return_value=mock_resp)
+            client._openai = mock_instance
+
+            result = await client.generate(
+                prompt="change style",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+                reference_images=[{"data": ref_b64, "media_type": "image/png"}],
+            )
+
+        assert result.image_b64 == "ref_result_b64"
+
+        call_kwargs = mock_instance.responses.create.call_args[1]
+        input_content = call_kwargs["input"][0]["content"]
+        # 4 个元素：原图 + 蒙版 + 参考图 + 文本
+        assert len(input_content) == 4
+        assert input_content[0]["type"] == "input_image"  # source
+        assert input_content[1]["type"] == "input_image"  # mask
+        assert input_content[2]["type"] == "input_image"  # reference
+        assert input_content[3]["type"] == "input_text"    # prompt
+
+    @pytest.mark.asyncio
+    async def test_inpaint_with_references_via_chat(self):
+        """chat 模式 inpaint 应将参考图插入 content 数组"""
+        client = ImageClient(api_key="sk-test", api_mode=API_MODE_CHAT)
+
+        mock_response = MagicMock()
+        mock_response.is_error = False
+        mock_response.status_code = 200
+        mock_response.text = '{"choices":[{"message":{"content":"![img](http://example.com/result.png)"}}]}'
+        mock_response.headers = {"content-type": "application/json"}
+        mock_response.json.return_value = {"choices": [{"message": {"content": "![img](http://example.com/result.png)"}}]}
+
+        ref_b64 = _make_minimal_png_b64()
+
+        with patch.object(client._http, "post", new_callable=AsyncMock, return_value=mock_response) as mock_post, \
+             patch.object(client, "_download_as_b64", new_callable=AsyncMock, return_value="downloaded_b64"):
+            result = await client.generate(
+                prompt="style transfer",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+                reference_images=[{"data": ref_b64, "media_type": "image/png"}],
+            )
+
+        assert result.image_b64 == "downloaded_b64"
+
+        call_kwargs = mock_post.call_args[1]
+        content = call_kwargs["json"]["messages"][0]["content"]
+        # 4 个元素：source + mask + reference + text
+        assert len(content) == 4
+        assert content[2]["type"] == "image_url"  # reference
+
+    @pytest.mark.asyncio
+    async def test_inpaint_without_references_still_works(self):
+        """不传参考图时 inpaint 行为不变"""
+        client = ImageClient(api_key="sk-test")
+
+        mock_resp = MagicMock()
+        mock_resp.id = "resp_no_ref"
+        mock_resp.output = [
+            MagicMock(type="image_generation_call", result="no_ref_b64", revised_prompt=None)
+        ]
+        mock_resp.usage = MagicMock(total_tokens=40)
+
+        with patch("src.core.client.AsyncOpenAI") as MockOpenAI:
+            mock_instance = MockOpenAI.return_value
+            mock_instance.responses = MagicMock()
+            mock_instance.responses.create = AsyncMock(return_value=mock_resp)
+            client._openai = mock_instance
+
+            result = await client.generate(
+                prompt="simple inpaint",
+                images=[],
+                previous_response_id=None,
+                mask_b64=_make_minimal_png_b64(),
+                source_image_b64=_make_minimal_png_b64(),
+            )
+
+        assert result.image_b64 == "no_ref_b64"
+
+        call_kwargs = mock_instance.responses.create.call_args[1]
+        input_content = call_kwargs["input"][0]["content"]
+        # 3 个元素（无参考图）
+        assert len(input_content) == 3
+
+
+class TestInpaintEndpointWithReferences:
+    """测试 inpaint 端点传递参考图给 client"""
+
+    @pytest.mark.asyncio
+    async def test_inpaint_endpoint_passes_references(self):
+        """端点应将 reference_images 传递给 client.generate()"""
+        from src.api.inpaint import InpaintRequest, ReferenceImage
+        b64 = _make_minimal_png_b64()
+
+        # 验证 request model 能正确携带参考图
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="test with refs",
+            source_image_b64=b64,
+            mask_b64=b64,
+            reference_images=[ReferenceImage(data=b64, media_type="image/png")],
+        )
+        refs_as_dicts = [{"data": r.data, "media_type": r.media_type} for r in req.reference_images]
+        assert len(refs_as_dicts) == 1
+        assert refs_as_dicts[0]["data"] == b64

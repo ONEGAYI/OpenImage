@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { inpaintImage } from "../services/api";
+import { fileToAttachment } from "../utils/file";
 import type { AttachedFile } from "../types";
 import MaskEditor from "./MaskEditor";
 import RatioSelector from "./RatioSelector";
@@ -45,16 +46,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files) return;
-      for (const file of Array.from(files)) {
-        if (!file.type.startsWith("image/")) continue;
-        const data = await fileToBase64(file);
-        const attachment: AttachedFile = {
-          id: crypto.randomUUID(),
-          name: file.name,
-          data,
-          media_type: file.type,
-          preview_url: `data:${file.type};base64,${data}`,
-        };
+      const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
+      const newAttachments = await Promise.all(imageFiles.map(fileToAttachment));
+      for (const attachment of newAttachments) {
         addAttachment(attachment);
       }
       e.target.value = "";
@@ -238,8 +232,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
       {editingAttachment && activeSessionId && (
         <MaskEditor
           source={{ type: "attachment", attachmentId: editingAttachment.id, imageB64: editingAttachment.data }}
+          initialReferences={attachments.filter((a) => a.id !== editingAttachment.id)}
           onClose={() => setEditingAttachment(null)}
-          onGenerate={(maskB64, prompt, reportError) => {
+          onGenerate={(maskB64, prompt, referenceImages, reportError) => {
             const store = useSessionStore.getState();
             inpaintImage(
               {
@@ -247,6 +242,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
                 prompt,
                 source_image_b64: editingAttachment.data,
                 mask_b64: maskB64,
+                reference_images: referenceImages.length > 0
+                  ? referenceImages.map(({ data, media_type }) => ({ data, media_type }))
+                  : undefined,
               },
               () => {
                 setEditingAttachment(null);
@@ -261,17 +259,4 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
       )}
     </div>
   );
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }

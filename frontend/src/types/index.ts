@@ -65,12 +65,18 @@ export interface SettingsResponse {
   full_version: string;
 }
 
+export interface ReferenceImage {
+  data: string;
+  media_type: string;
+}
+
 export interface InpaintRequest {
   session_id: string;
   prompt: string;
   source_image_id?: string;
   source_image_b64?: string;
   mask_b64: string;
+  reference_images?: ReferenceImage[];
   params?: GenerateParams;
 }
 
