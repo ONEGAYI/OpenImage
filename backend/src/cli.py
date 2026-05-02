@@ -69,17 +69,20 @@ async def _retry(coro_fn, label: str):
 
 @app.command()
 def serve(
-    port: int = 8765,
+    port: int = 0,
     base_dir: str = typer.Option(None, "--base-dir", help="数据目录覆盖"),
 ):
     """启动 HTTP API 服务"""
     import uvicorn
     from src.server import create_app
+    from src.core.port import find_free_port, write_port_file
 
     resolved = Path(base_dir) if base_dir else get_base_dir()
-    console.print(f"[green]Starting OpenImage server on port {port}...[/green]")
+    actual_port = port or find_free_port()
+    write_port_file(actual_port)
+    console.print(f"[green]Starting OpenImage server on port {actual_port}...[/green]")
     console.print(f"[dim]Data directory: {resolved}[/dim]")
-    uvicorn.run(create_app(resolved), host="127.0.0.1", port=port)
+    uvicorn.run(create_app(resolved), host="127.0.0.1", port=actual_port)
 
 
 async def _load_client(db):
