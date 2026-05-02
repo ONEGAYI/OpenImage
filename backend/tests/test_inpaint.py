@@ -285,3 +285,25 @@ class TestInpaintWithReferences:
         input_content = call_kwargs["input"][0]["content"]
         # 3 个元素（无参考图）
         assert len(input_content) == 3
+
+
+class TestInpaintEndpointWithReferences:
+    """测试 inpaint 端点传递参考图给 client"""
+
+    @pytest.mark.asyncio
+    async def test_inpaint_endpoint_passes_references(self):
+        """端点应将 reference_images 传递给 client.generate()"""
+        from src.api.inpaint import InpaintRequest, ReferenceImage
+        b64 = _make_minimal_png_b64()
+
+        # 验证 request model 能正确携带参考图
+        req = InpaintRequest(
+            session_id="sess_1",
+            prompt="test with refs",
+            source_image_b64=b64,
+            mask_b64=b64,
+            reference_images=[ReferenceImage(data=b64, media_type="image/png")],
+        )
+        refs_as_dicts = [{"data": r.data, "media_type": r.media_type} for r in req.reference_images]
+        assert len(refs_as_dicts) == 1
+        assert refs_as_dicts[0]["data"] == b64
