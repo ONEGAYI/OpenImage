@@ -1,7 +1,10 @@
 # backend/src/api/generate.py
 import base64
 import json
+import logging
 import uuid
+
+logger = logging.getLogger(__name__)
 from io import BytesIO
 
 from fastapi import APIRouter, HTTPException, Request
@@ -184,9 +187,7 @@ async def generate(body: GenerateRequest, request: Request):
     images = [img.model_dump(exclude_none=True) for img in body.images if img.type == "base64"]
 
     client = request.app.state.client
-    history_images = [history_image_b64] if (
-        client.api_mode == API_MODE_CHAT and history_image_b64
-    ) else None
+    history_images = [history_image_b64] if history_image_b64 else None
 
     async def event_stream():
         try:
@@ -214,6 +215,7 @@ async def generate(body: GenerateRequest, request: Request):
             yield f"event: completed\ndata: {json.dumps(saved)}\n\n"
 
         except Exception as e:
+            logger.exception("Generation failed for session %s", body.session_id)
             yield f"event: error\ndata: {json.dumps({'code': 'generation_failed', 'message': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

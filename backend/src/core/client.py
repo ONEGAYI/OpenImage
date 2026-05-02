@@ -149,6 +149,21 @@ class ImageClient:
 
     # ---- Images API (httpx) ----
 
+    async def _parse_images_api_item(self, item: dict) -> GenerateResult:
+        """解析 Images API 返回的 data item（b64/url 回退）"""
+        image_b64 = item.get("b64_json", "")
+        if not image_b64:
+            url = item.get("url", "")
+            if url:
+                image_b64 = await self._download_as_b64(url)
+
+        return GenerateResult(
+            response_id=self._make_response_id(),
+            image_b64=image_b64,
+            revised_prompt=item.get("revised_prompt"),
+            total_tokens=0,
+        )
+
     async def _generate_via_images(
         self,
         prompt: str,
@@ -169,20 +184,34 @@ class ImageClient:
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
         self._check_response(resp, "Images API")
-        item = resp.json()["data"][0]
+        return await self._parse_images_api_item(resp.json()["data"][0])
 
-        image_b64 = item.get("b64_json", "")
-        if not image_b64:
-            url = item.get("url", "")
-            if url:
-                image_b64 = await self._download_as_b64(url)
+    async def _edit_via_images(
+        self,
+        prompt: str,
+        reference_b64: str,
+        params: dict[str, Any] | None = None,
+    ) -> GenerateResult:
+        """Images API 参考图生成：POST /v1/images/edits（无 mask，纯参考图）"""
+        files = {
+            "image": ("reference.png", base64.b64decode(reference_b64), "image/png"),
+        }
+        data = {
+            "prompt": prompt,
+            "model": self.model_name,
+            "n": "1",
+            "response_format": "b64_json",
+        }
+        data.update(self._extract_params(params or {}))
 
-        return GenerateResult(
-            response_id=self._make_response_id(),
-            image_b64=image_b64,
-            revised_prompt=item.get("revised_prompt"),
-            total_tokens=0,
+        resp = await self._http.post(
+            f"{self._base_url}/images/edits",
+            data=data,
+            files=files,
+            headers={"Authorization": f"Bearer {self._api_key}"},
         )
+        self._check_response(resp, "Images Edits API")
+        return await self._parse_images_api_item(resp.json()["data"][0])
 
     # ---- Chat Completions API (httpx) ----
 
@@ -292,22 +321,10 @@ class ImageClient:
             f"{self._base_url}/images/edits",
             data=data,
             files=files,
+            headers={"Authorization": f"Bearer {self._api_key}"},
         )
         self._check_response(resp, "Images Edits API")
-        item = resp.json()["data"][0]
-
-        image_b64 = item.get("b64_json", "")
-        if not image_b64:
-            url = item.get("url", "")
-            if url:
-                image_b64 = await self._download_as_b64(url)
-
-        return GenerateResult(
-            response_id=self._make_response_id(),
-            image_b64=image_b64,
-            revised_prompt=item.get("revised_prompt"),
-            total_tokens=0,
-        )
+        return await self._parse_images_api_item(resp.json()["data"][0])
 
     async def _inpaint_via_responses(
         self,
@@ -434,6 +451,8 @@ class ImageClient:
                 prompt, images, params, history_images
             )
         if self.api_mode == API_MODE_IMAGES:
+            if history_images:
+                return await self._edit_via_images(prompt, history_images[0], params)
             return await self._generate_via_images(prompt, images, params)
         return await self._generate_via_responses(
             prompt, images, previous_response_id, params
