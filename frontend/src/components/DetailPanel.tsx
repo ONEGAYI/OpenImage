@@ -5,7 +5,7 @@ import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
 import MaskEditor from "./MaskEditor";
 import { useToastStore } from "../stores/toastStore";
-import type { Image, MaskImageSource } from "../types";
+import type { Image, MaskImageSource, InpaintRequest } from "../types";
 
 export default function DetailPanel() {
   const { t } = useTranslation();
@@ -253,10 +253,13 @@ export default function DetailPanel() {
         <MaskEditor
           source={editingMask}
           onClose={() => setEditingMask(null)}
-          onGenerate={(maskB64, prompt, reportError) => {
-            const req = editingMask.type === "generated"
+          onGenerate={(maskB64, prompt, referenceImages, reportError) => {
+            const req: InpaintRequest = editingMask.type === "generated"
               ? { session_id: activeSessionId, prompt, source_image_id: editingMask.imageId, mask_b64: maskB64 }
               : { session_id: activeSessionId, prompt, source_image_b64: editingMask.imageB64, mask_b64: maskB64 };
+            if (referenceImages.length > 0) {
+              req.reference_images = referenceImages;
+            }
             inpaintImage(
               req,
               () => {
