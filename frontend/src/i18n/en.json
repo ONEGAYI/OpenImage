@@ -94,6 +94,8 @@
   "mask.rectangle": "Rectangle",
   "mask.eraser": "Eraser",
   "mask.fit": "Fit",
+  "toast.imageSaved": "Image saved: {{name}}",
+  "toast.imagesSaved": "{{count}} images saved",
 
   "error.generateFailed": "Generation failed. Please check your API settings or network connection."
 }

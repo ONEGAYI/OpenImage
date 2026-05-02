@@ -94,6 +94,8 @@
   "mask.rectangle": "矩形",
   "mask.eraser": "橡皮擦",
   "mask.fit": "适配",
+  "toast.imageSaved": "已保存图片 {{name}}",
+  "toast.imagesSaved": "已保存 {{count}} 张图片",
 
   "error.generateFailed": "生成失败，请检查 API 设置或网络连接"
 }
