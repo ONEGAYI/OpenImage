@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { BASE_URL } from "./services/api";
+import { initBaseUrl } from "./services/api";
 import Sidebar from "./components/Sidebar";
 import Gallery from "./components/Gallery";
 import InputArea from "./components/InputArea";
@@ -22,9 +22,15 @@ function App() {
     }, 30000);
 
     if ("__TAURI_INTERNALS__" in window) {
-      const unlistenReady = listen("backend-ready", () => {
-        clearTimeout(timeout);
-        setReady(true);
+      const unlistenReady = listen("backend-ready", async () => {
+        try {
+          await initBaseUrl();
+          clearTimeout(timeout);
+          setReady(true);
+        } catch (e) {
+          clearTimeout(timeout);
+          setError(String(e));
+        }
       });
 
       const unlistenError = listen<string>("backend-error", (e) => {
@@ -38,25 +44,28 @@ function App() {
         clearTimeout(timeout);
       };
     } else {
-      let active = true;
-      const poll = async () => {
-        while (active) {
-          try {
-            const res = await fetch(`${BASE_URL}/api/settings`);
-            if (res.ok) {
-              clearTimeout(timeout);
-              setReady(true);
-              return;
-            }
-          } catch {}
-          await new Promise((r) => setTimeout(r, 500));
-        }
-      };
-      poll();
-      return () => {
-        active = false;
-        clearTimeout(timeout);
-      };
+      // Web 模式：baseUrl 为空字符串（Vite proxy），直接用相对路径 poll
+      initBaseUrl().then(() => {
+        let active = true;
+        const poll = async () => {
+          while (active) {
+            try {
+              const res = await fetch("/api/settings");
+              if (res.ok) {
+                clearTimeout(timeout);
+                setReady(true);
+                return;
+              }
+            } catch {}
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        };
+        poll();
+        return () => {
+          active = false;
+          clearTimeout(timeout);
+        };
+      });
     }
   }, []);
 
