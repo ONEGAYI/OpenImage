@@ -8,6 +8,7 @@ import InputArea from "./components/InputArea";
 import DetailPanel from "./components/DetailPanel";
 import Topbar from "./components/Topbar";
 import SettingsDialog from "./components/SettingsDialog";
+import ToastContainer from "./components/Toast";
 
 function App() {
   const { t } = useTranslation();
@@ -112,6 +113,7 @@ function App() {
       </div>
       <div className="shrink-0 overflow-hidden"><DetailPanel /></div>
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      <ToastContainer />
     </div>
   );
 }
