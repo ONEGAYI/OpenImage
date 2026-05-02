@@ -5,6 +5,24 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.2] - 2026-05-02
+
+### 新功能
+
+- **Images API 多步迭代**：Step 2+ 自动使用上一步图片作为参考图，调用 `/v1/images/edits` 端点（参考图作为 `image` 字段，无 mask 纯编辑）
+  - 新增 `_edit_via_images()` 方法处理带参考图的生成请求
+  - `history_images` 参数不再仅限 chat 模式，统一传递给所有 API 模式路由
+  - 新增 `_parse_images_api_item()` 辅助方法，消除三处重复的 Images API 响应解析逻辑
+
+### Bug 修复
+
+- 修复 `_inpaint_via_images()` 缺少 `Authorization` header 导致 multipart/form-data 请求认证失败的问题
+- 修复 `_edit_via_images()` 同样缺少 `Authorization` header 的问题
+
+### 其他改进
+
+- `generate.py` 添加模块级 logger，生成失败时记录完整异常堆栈和 session_id，提升调试效率
+
 ## [1.3.1] - 2026-05-02
 
 ### 新功能
@@ -150,6 +168,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.3.2]: https://github.com/user/OpenImage/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/user/OpenImage/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/user/OpenImage/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/user/OpenImage/compare/v1.1.0...v1.2.0
