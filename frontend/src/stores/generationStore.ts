@@ -11,12 +11,19 @@ export const SIZE_MAP: Record<string, Record<string, string>> = {
 export const RATIO_OPTIONS = ["1:1", "16:9", "9:16"] as const;
 export const SIZE_OPTIONS = ["1K", "2K", "4K"] as const;
 
-interface GenerationState {
+interface SessionGenState {
   isGenerating: boolean;
   partialImage: string | null;
+  abortController: AbortController | null;
+}
+
+interface GenerationState {
+  sessionGenerations: Record<string, SessionGenState>;
   error: string | null;
   attachments: AttachedFile[];
-  abortController: AbortController | null;
+  pendingForkFrom: string | null;
+  aspectRatio: (typeof RATIO_OPTIONS)[number];
+  imageSize: (typeof SIZE_OPTIONS)[number];
 
   addAttachment: (file: AttachedFile) => void;
   removeAttachment: (id: string) => void;
@@ -27,22 +34,34 @@ interface GenerationState {
     forkFrom?: string,
     onSuccess?: () => void
   ) => void;
-  cancelGeneration: () => void;
+  cancelGeneration: (sessionId: string) => void;
   clearError: () => void;
-  pendingForkFrom: string | null;
   setPendingForkFrom: (id: string | null) => void;
-  aspectRatio: (typeof RATIO_OPTIONS)[number];
-  imageSize: (typeof SIZE_OPTIONS)[number];
   setAspectRatio: (ratio: (typeof RATIO_OPTIONS)[number]) => void;
   setImageSize: (size: (typeof SIZE_OPTIONS)[number]) => void;
 }
 
-export const useGenerationStore = create<GenerationState>((set, get) => ({
+const defaultGen: SessionGenState = {
   isGenerating: false,
   partialImage: null,
+  abortController: null,
+};
+
+function updateSessionGen(
+  state: GenerationState,
+  sessionId: string,
+  patch: Partial<SessionGenState>
+): Record<string, SessionGenState> {
+  return {
+    ...state.sessionGenerations,
+    [sessionId]: { ...state.sessionGenerations[sessionId] ?? defaultGen, ...patch },
+  };
+}
+
+export const useGenerationStore = create<GenerationState>((set, get) => ({
+  sessionGenerations: {},
   error: null,
   attachments: [],
-  abortController: null,
   pendingForkFrom: null,
   aspectRatio: "1:1",
   imageSize: "1K",
@@ -58,8 +77,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   clearAttachments: () => set({ attachments: [] }),
 
   startGeneration: (sessionId, prompt, forkFrom, onSuccess) => {
-    const { attachments, aspectRatio, imageSize } = get();
-    set({ isGenerating: true, partialImage: null, error: null });
+    const { attachments, aspectRatio, imageSize, sessionGenerations } = get();
+    if (sessionGenerations[sessionId]?.isGenerating) return;
 
     const images = attachments.map((a) => ({
       type: "base64" as const,
@@ -76,13 +95,20 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         params: { size: SIZE_MAP[aspectRatio]?.[imageSize] || "1024x1024" },
       },
       (_index, b64) => {
-        set({ partialImage: `data:image/png;base64,${b64}` });
+        set((state) => ({
+          sessionGenerations: updateSessionGen(state, sessionId, {
+            partialImage: `data:image/png;base64,${b64}`,
+          }),
+        }));
       },
       (_data: GenerateCompleted) => {
-        set({
-          isGenerating: false,
-          partialImage: null,
-        });
+        set((state) => ({
+          sessionGenerations: updateSessionGen(state, sessionId, {
+            isGenerating: false,
+            partialImage: null,
+            abortController: null,
+          }),
+        }));
         onSuccess?.();
         import("./sessionStore").then(({ useSessionStore }) => {
           const store = useSessionStore.getState();
@@ -90,16 +116,37 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         });
       },
       (code, message) => {
-        set({ isGenerating: false, error: `${code}: ${message}` });
+        set((state) => ({
+          sessionGenerations: updateSessionGen(state, sessionId, {
+            isGenerating: false,
+            partialImage: null,
+            abortController: null,
+          }),
+          error: `${code}: ${message}`,
+        }));
       }
     );
 
-    set({ abortController: controller });
+    set((state) => ({
+      sessionGenerations: updateSessionGen(state, sessionId, {
+        isGenerating: true,
+        partialImage: null,
+        abortController: controller,
+      }),
+      error: null,
+    }));
   },
 
-  cancelGeneration: () => {
-    get().abortController?.abort();
-    set({ isGenerating: false, partialImage: null, abortController: null });
+  cancelGeneration: (sessionId) => {
+    const gen = get().sessionGenerations[sessionId];
+    gen?.abortController?.abort();
+    set((state) => ({
+      sessionGenerations: updateSessionGen(state, sessionId, {
+        isGenerating: false,
+        partialImage: null,
+        abortController: null,
+      }),
+    }));
   },
 
   clearError: () => set({ error: null }),

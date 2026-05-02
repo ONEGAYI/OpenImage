@@ -15,18 +15,22 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
   const { t } = useTranslation();
   const { activeSessionId } = useSessionStore();
   const {
-    isGenerating,
     attachments,
     error,
     addAttachment,
     removeAttachment,
     startGeneration,
-    cancelGeneration,
     clearAttachments,
     clearError,
     pendingForkFrom,
     setPendingForkFrom,
   } = useGenerationStore();
+  const sid = activeSessionId ?? "";
+  const isThisGenerating = useGenerationStore((s) => s.sessionGenerations[sid]?.isGenerating ?? false);
+
+  const cancelThisGeneration = useCallback(() => {
+    if (sid) useGenerationStore.getState().cancelGeneration(sid);
+  }, [sid]);
 
   const [prompt, setPrompt] = useState("");
   const [editingAttachment, setEditingAttachment] = useState<AttachedFile | null>(null);
@@ -59,7 +63,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
   );
 
   const handleGenerate = () => {
-    if (!activeSessionId || !prompt.trim() || isGenerating) return;
+    if (!activeSessionId || !prompt.trim() || isThisGenerating) return;
     startGeneration(
       activeSessionId,
       prompt.trim(),
@@ -152,7 +156,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
       <div className="flex gap-1 pb-0.5 items-end">
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
         <button
-          onClick={handleAttach} disabled={isGenerating}
+          onClick={handleAttach} disabled={isThisGenerating}
           className="flex self-center items-center gap-1 px-2.5 py-1 text-xs rounded-md transition-colors disabled:opacity-50 cursor-pointer"
           style={{ color: "var(--muted)" }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.color = "var(--fg)"; }}
@@ -201,9 +205,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
           />
         </div>
-        {isGenerating ? (
+        {isThisGenerating ? (
           <button
-            onClick={cancelGeneration}
+            onClick={cancelThisGeneration}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer"
             style={{ padding: "9px 18px", minHeight: 40, background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.14)")}

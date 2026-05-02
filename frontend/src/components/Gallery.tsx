@@ -5,8 +5,10 @@ import { getImageFileUrl } from "../services/api";
 
 export default function Gallery() {
   const { t } = useTranslation();
-  const { images, selectedImageIds, selectImage, toggleImageSelect, loading } = useSessionStore();
-  const { isGenerating, partialImage } = useGenerationStore();
+  const { images, selectedImageIds, selectImage, toggleImageSelect, loading, activeSessionId } = useSessionStore();
+  const sid = activeSessionId ?? "";
+  const isGenerating = useGenerationStore((s) => s.sessionGenerations[sid]?.isGenerating ?? false);
+  const partialImage = useGenerationStore((s) => s.sessionGenerations[sid]?.partialImage ?? null);
 
   if (loading) {
     return <div className="flex-1 flex items-center justify-center" style={{ color: "var(--faint)" }}>{t("gallery.loading")}</div>;
