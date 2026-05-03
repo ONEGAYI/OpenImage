@@ -6,6 +6,11 @@ import type {
   SettingsResponse,
   InpaintRequest,
   InpaintCompleted,
+  LLMChatSession,
+  LLMMessage,
+  LLMSettings,
+  LLMSettingsUpdate,
+  LLMChatRequest,
 } from "../types";
 
 // --- Base URL 管理 ---
@@ -198,4 +203,153 @@ export async function updateSettings(
     method: "PATCH",
     body: JSON.stringify(settings),
   });
+}
+
+// ── LLM AI 助手 API ──
+
+export async function getLLMSettings(): Promise<LLMSettings> {
+  return request<LLMSettings>("/api/llm-settings");
+}
+
+export async function updateLLMSettings(data: LLMSettingsUpdate): Promise<LLMSettings> {
+  return request<LLMSettings>("/api/llm-settings", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listLLMChatSessions(sessionId: string): Promise<LLMChatSession[]> {
+  return request<LLMChatSession[]>(`/api/sessions/${sessionId}/llm-chats`);
+}
+
+export async function createLLMChatSession(sessionId: string, name?: string): Promise<LLMChatSession> {
+  return request<LLMChatSession>(`/api/sessions/${sessionId}/llm-chats`, {
+    method: "POST",
+    body: JSON.stringify({ name: name || "新对话" }),
+  });
+}
+
+export async function renameLLMChatSession(chatId: string, name: string): Promise<LLMChatSession> {
+  return request<LLMChatSession>(`/api/llm-chats/${chatId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteLLMChatSession(chatId: string): Promise<void> {
+  await request(`/api/llm-chats/${chatId}`, { method: "DELETE" });
+}
+
+export async function listLLMMessages(chatId: string): Promise<LLMMessage[]> {
+  return request<LLMMessage[]>(`/api/llm-chats/${chatId}/messages`);
+}
+
+export async function editLLMMessage(messageId: string, content: string): Promise<void> {
+  await request(`/api/llm-messages/${messageId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function deleteLLMMessage(messageId: string): Promise<void> {
+  await request(`/api/llm-messages/${messageId}`, { method: "DELETE" });
+}
+
+export async function batchDeleteLLMMessages(messageIds: string[]): Promise<void> {
+  await request("/api/llm-messages/batch-delete", {
+    method: "POST",
+    body: JSON.stringify({ message_ids: messageIds }),
+  });
+}
+
+export async function undoDeleteLLMMessage(messageId: string): Promise<void> {
+  await request(`/api/llm-messages/${messageId}/undo-delete`, { method: "POST" });
+}
+
+// SSE 聊天事件 handler 类型
+export interface LLMChatEventHandler {
+  onToken: (text: string) => void;
+  onBuffering: (data: { status: string; elapsed_ms: number }) => void;
+  onAiBlock: (data: Record<string, unknown>) => void;
+  onParseWarning: (data: { status: string; raw_text: string }) => void;
+  onUsage: (data: { prompt_tokens: number; completion_tokens: number }) => void;
+  onCompleted: (data: { message_id: string; token_count: number }) => void;
+  onError: (data: { code: string; message: string }) => void;
+}
+
+export function sendLLMChat(
+  chatId: string,
+  body: LLMChatRequest,
+  handler: LLMChatEventHandler,
+): AbortController {
+  const url = `${getBaseUrl()}/api/llm-chats/${chatId}/chat`;
+  const controller = new AbortController();
+
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: controller.signal,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      handler.onError({ code: String(res.status), message: err.detail || res.statusText });
+      return;
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return;
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      let currentEvent = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          const raw = line.slice(6);
+          try {
+            const data = JSON.parse(raw);
+            switch (currentEvent) {
+              case "token":
+                handler.onToken(data.text || "");
+                break;
+              case "buffering":
+                handler.onBuffering(data);
+                break;
+              case "ai_block":
+                handler.onAiBlock(data);
+                break;
+              case "parse_warning":
+                handler.onParseWarning(data);
+                break;
+              case "usage":
+                handler.onUsage(data);
+                break;
+              case "completed":
+                handler.onCompleted(data);
+                break;
+              case "error":
+                handler.onError(data);
+                break;
+            }
+          } catch {
+            // 忽略非 JSON 行
+          }
+        }
+      }
+    }
+  }).catch((err) => {
+    if (err.name !== "AbortError") {
+      handler.onError({ code: "fetch_error", message: err.message });
+    }
+  });
+
+  return controller;
 }
