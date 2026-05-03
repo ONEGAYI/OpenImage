@@ -137,6 +137,7 @@
     "settingsTitle": "LLM AI 助手设置",
     "thinking": "正在思考...",
     "thoughtFor": "已思考 {{seconds}} 秒",
-    "scrollToLatest": "转到最新"
+    "scrollToLatest": "转到最新",
+    "blockParseError": "解析错误，请检查AI输出或向开发者反馈"
   }
 }

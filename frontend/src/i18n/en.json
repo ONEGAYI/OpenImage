@@ -137,6 +137,7 @@
     "settingsTitle": "LLM AI Assistant Settings",
     "thinking": "Thinking...",
     "thoughtFor": "Thought for {{seconds}}s",
-    "scrollToLatest": "Scroll to latest"
+    "scrollToLatest": "Scroll to latest",
+    "blockParseError": "Parse error — check AI output or report to developer"
   }
 }

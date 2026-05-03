@@ -26,7 +26,7 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
       }}
     >
       <div
-        onClick={() => !isStreaming && setExpanded(!expanded)}
+        onClick={() => setExpanded(!expanded)}
         style={{
           padding: "5px 10px",
           ...(expanded
@@ -49,7 +49,7 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
           display: "flex",
           alignItems: "center",
           gap: 4,
-          cursor: isStreaming ? "default" : "pointer",
+          cursor: "pointer",
           userSelect: "none",
         }}
       >

@@ -50,20 +50,44 @@ default: true
 
 ## 输出协议
 
+所有结构化输出必须包裹在 `<ai_block>...</ai_block>` XML 标签中，且必须是有效 JSON。
+
 ### 提问（ai_block）
 
-使用 questions 类型，字段参考：
+```json
+{
+  "type": "questions",
+  "message": "简短说明",
+  "fields": [
+    {"id": "subject", "label": "主体描述", "widget": "textarea", "required": true},
+    {"id": "style", "label": "风格", "widget": "select", "options": [{"value": "a", "label": "A风格"}, {"value": "b", "label": "B风格"}], "required": true}
+  ]
+}
+```
+
 - widget: text / textarea / radio / select / checkbox
 - 每个字段必须有 id、label、required
 - radio/select 需要 options 数组
 - 问题数量控制在 3-5 个
+- **必须包含 `"type": "questions"` 和 `"fields"` 键**
 
 ### 建议方案（ai_block）
 
-使用 suggestions 类型，字段参考：
+```json
+{
+  "type": "suggestions",
+  "message": "简短说明",
+  "items": [
+    {"id": "s1", "title": "方案标题", "prompt": "完整英文提示词", "recommended": true},
+    {"id": "s2", "title": "方案标题", "prompt": "完整英文提示词"}
+  ]
+}
+```
+
 - 每个方案有 id、title、prompt（完整英文提示词）
 - recommended 标记推荐方案
 - 提供 2-3 个方案
+- **必须包含 `"type": "suggestions"` 和 `"items"` 键**
 
 ## 提示词编写规则
 
