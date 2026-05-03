@@ -82,17 +82,17 @@ async def list_chat_sessions(session_id: str, request: Request):
         for r in rows
     ]
 
-    # 回填 token 数据异常的会话：重新计算 token_count（含 thinking + ai_block + 用户消息）
+    # 回填 token 数据异常的会话：按累计值语义重算 token_count
     needs_fix = []
     msg_fixes = []
     for r in results:
         cursor = await conn.execute(
             "SELECT id, role, content, thinking_content, ai_block, token_count "
-            "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL",
+            "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
             (r["id"],),
         )
         msgs = await cursor.fetchall()
-        new_total = 0
+        cumulative = 0
         any_updated = False
         for msg in msgs:
             _, role, content, thinking, block, saved_tc = msg
@@ -102,13 +102,13 @@ async def list_chat_sessions(session_id: str, request: Request):
                 ai_block=json.loads(block) if block else None,
                 saved_token_count=saved_tc,
             )
-            if est != saved_tc:
-                msg_fixes.append((est, msg[0]))
+            cumulative += est
+            if cumulative != saved_tc:
+                msg_fixes.append((cumulative, msg[0]))
                 any_updated = True
-            new_total += est
-        if any_updated or r["total_tokens"] != new_total:
-            r["total_tokens"] = new_total
-            needs_fix.append((new_total, r["id"]))
+        if any_updated or r["total_tokens"] != cumulative:
+            r["total_tokens"] = cumulative
+            needs_fix.append((cumulative, r["id"]))
     if msg_fixes:
         await conn.executemany("UPDATE llm_messages SET token_count = ? WHERE id = ?", msg_fixes)
     if needs_fix:
