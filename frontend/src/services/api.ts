@@ -298,6 +298,14 @@ export async function undoDeleteLLMMessage(messageId: string): Promise<void> {
   await request(`/api/llm-messages/${messageId}/undo-delete`, { method: "POST" });
 }
 
+export async function deleteLastLLMMessage(chatId: string): Promise<{
+  ok: boolean;
+  deleted_message_id: string;
+  total_tokens: number;
+}> {
+  return request(`/api/llm-chats/${chatId}/messages/last`, { method: "DELETE" });
+}
+
 // SSE 聊天事件 handler 类型
 export interface LLMChatEventHandler {
   onToken: (text: string) => void;
