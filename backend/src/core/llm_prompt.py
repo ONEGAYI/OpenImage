@@ -28,17 +28,14 @@ def compose_system_prompt(
 ) -> str:
     parts = []
 
-    # L1: 基础身份
     parts.append(BASE_IDENTITY)
 
-    # L2: Active Skill
     skill_id = get_default_skill_id()
     skill_content = load_skill_content(skill_id)
     if skill_content:
         body = _strip_frontmatter(skill_content)
         parts.append(f"## 技能指令\n\n{body}")
 
-    # L3: 上下文
     context_text = _render_context_layer(
         user_custom=user_custom,
         aspect_ratio=aspect_ratio,
@@ -48,7 +45,6 @@ def compose_system_prompt(
     if context_text:
         parts.append(context_text)
 
-    # L4: 历史摘要
     if history_summary:
         parts.append(f"## 对话摘要\n\n{history_summary}")
 

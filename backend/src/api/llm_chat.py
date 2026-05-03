@@ -262,7 +262,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
     # 查询当前会话图片（用于 L3 上下文注入）
     cursor = await conn.execute(
-        "SELECT prompt FROM images WHERE session_id = ? ORDER BY created_at DESC LIMIT 5",
+        "SELECT prompt FROM images WHERE session_id = ? ORDER BY created_at DESC LIMIT 3",
         (session_row[0],),
     )
     img_rows = await cursor.fetchall()
@@ -295,25 +295,15 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             async for event in llm_client.chat_stream(messages):
                 if event.type == "token":
                     full_text += event.data["text"]
-                    yield f"event: token\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
-
-                elif event.type == "buffering":
-                    yield f"event: buffering\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
-
                 elif event.type == "ai_block":
                     ai_block_data = event.data
-                    yield f"event: ai_block\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
-
-                elif event.type == "parse_warning":
-                    yield f"event: parse_warning\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
-
                 elif event.type == "usage":
                     prompt_tokens = event.data.get("prompt_tokens", 0)
                     completion_tokens = event.data.get("completion_tokens", 0)
-                    yield f"event: usage\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
 
-                elif event.type == "error":
-                    yield f"event: error\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+                yield f"event: {event.type}\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                if event.type == "error":
                     return
 
             # 保存 AI 回复

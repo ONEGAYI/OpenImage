@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -30,6 +31,7 @@ def get_default_skill_id() -> str:
     return next(iter(SKILLS))
 
 
+@lru_cache(maxsize=8)
 def load_skill_content(skill_id: str) -> str:
     sdef = SKILLS[skill_id]
     return (SKILLS_DIR / sdef.file).read_text(encoding="utf-8")
