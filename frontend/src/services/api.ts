@@ -299,6 +299,7 @@ export interface LLMChatEventHandler {
   onCompleted: (data: {
     message_id: string;
     token_count: number;
+    total_tokens: number;
     session_name?: string;
     thinking_content?: string;
     thinking_duration_ms?: number;
@@ -321,7 +322,7 @@ export function sendLLMChat(
       case "ai_block": handler.onAiBlock(data); break;
       case "parse_warning": handler.onParseWarning(data as { status: string; raw_text: string }); break;
       case "usage": handler.onUsage(data as { prompt_tokens: number; completion_tokens: number }); break;
-      case "completed": handler.onCompleted(data as { message_id: string; token_count: number; session_name?: string }); break;
+      case "completed": handler.onCompleted(data as { message_id: string; token_count: number; total_tokens: number; session_name?: string }); break;
       case "error":
       case "network_error": handler.onError(data as { code: string; message: string }); break;
     }

@@ -182,10 +182,14 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
               bufferingState: "idle",
               currentAiBlock: null,
               abortController: null,
-              ...(sessionName
-                ? { chatSessions: s.chatSessions.map((cs) =>
-                    cs.id === currentChatSessionId ? { ...cs, name: sessionName } : cs) }
-                : {}),
+              chatSessions: s.chatSessions.map((cs) =>
+                cs.id === currentChatSessionId
+                  ? { ...cs,
+                      ...(sessionName ? { name: sessionName } : {}),
+                      total_tokens: data.total_tokens ?? cs.total_tokens,
+                    }
+                  : cs
+              ),
             }));
           }).catch(() => {
             // 加载失败时回退到本地构建的消息
@@ -209,6 +213,14 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
               bufferingState: "idle",
               currentAiBlock: null,
               abortController: null,
+              chatSessions: s.chatSessions.map((cs) =>
+                cs.id === currentChatSessionId
+                  ? { ...cs,
+                      ...(sessionName ? { name: sessionName } : {}),
+                      total_tokens: data.total_tokens ?? cs.total_tokens,
+                    }
+                  : cs
+              ),
             }));
           });
         },

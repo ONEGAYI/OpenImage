@@ -75,7 +75,12 @@ class LLMClient:
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
-        body = {"model": self.model_name, "messages": messages, "stream": True}
+        body = {
+            "model": self.model_name,
+            "messages": messages,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
 
         full_text = ""  # 保留完整原始文本（含 ai_block 标签），用于持久化和 completed 事件
         pending = ""       # 尚未输出的文本（可能包含不完整的标签前缀）

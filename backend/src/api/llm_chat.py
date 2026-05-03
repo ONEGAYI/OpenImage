@@ -342,19 +342,15 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                  datetime.now(UTC).isoformat()),
             )
 
-            # 更新会话 token 统计
+            # 更新会话 token 统计（API 返回 usage 时用精确值，否则用估算）
             total_add = prompt_tokens + completion_tokens
+            if total_add == 0:
+                total_add = estimate_tokens(system_prompt) + token_count
             now = datetime.now(UTC).isoformat()
-            if total_add > 0:
-                await conn.execute(
-                    "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
-                    (total_add, now, chat_id),
-                )
-            else:
-                await conn.execute(
-                    "UPDATE llm_chat_sessions SET updated_at = ? WHERE id = ?",
-                    (now, chat_id),
-                )
+            await conn.execute(
+                "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
+                (total_add, now, chat_id),
+            )
 
             # 自动命名：首次回复后将默认名替换为用户首条消息摘要
             session_name = None
@@ -376,7 +372,15 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             await conn.commit()
 
-            completed_data = {"message_id": ai_msg_id, "token_count": token_count}
+            # 查询更新后的会话 token 总量（权威值，覆盖前端增量更新）
+            cursor = await conn.execute("SELECT total_tokens FROM llm_chat_sessions WHERE id = ?", (chat_id,))
+            token_row = await cursor.fetchone()
+
+            completed_data = {
+                "message_id": ai_msg_id,
+                "token_count": token_count,
+                "total_tokens": token_row[0] if token_row else 0,
+            }
             if thinking_content:
                 completed_data["thinking_content"] = thinking_content
                 completed_data["thinking_duration_ms"] = thinking_duration_ms
