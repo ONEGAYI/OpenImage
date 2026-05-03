@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLLMChatStore } from "../../stores/llmChatStore";
 import ChatMessage from "./ChatMessage";
@@ -16,27 +16,41 @@ export default function ChatPanel() {
   const currentAiBlock = useLLMChatStore((s) => s.currentAiBlock);
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
+  const [isFollowing, setIsFollowing] = useState(true);
 
   const isStreaming = !!streamingText || !!streamingThinking;
 
-  // 消息变化时立即滚动（加载历史、completed 等）
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, []);
 
-  // 流式 token 通过 rAF 节流滚动，避免每个 token 触发回流
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    setIsFollowing(atBottom);
+  }, []);
+
+  // 消息变化时滚动（仅在跟随模式下）
   useEffect(() => {
-    if (!isStreaming) return;
+    if (!isFollowing) return;
+    scrollToBottom();
+  }, [messages, isFollowing, scrollToBottom]);
+
+  // 流式 token 通过 rAF 节流滚动
+  useEffect(() => {
+    if (!isStreaming || !isFollowing) return;
     cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
-    });
+    rafRef.current = requestAnimationFrame(scrollToBottom);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [streamingText, streamingThinking, isStreaming]);
+  }, [streamingText, streamingThinking, isStreaming, isFollowing, scrollToBottom]);
+
+  // 新对话/首次展开时重置为跟随模式
+  useEffect(() => {
+    setIsFollowing(true);
+  }, [panelExpanded]);
 
   if (!panelExpanded) {
     const lastMsg = messages[messages.length - 1];
@@ -82,6 +96,7 @@ export default function ChatPanel() {
       <ChatSessionBar />
       <div
         ref={scrollRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
           overflowY: "auto",
@@ -117,6 +132,30 @@ export default function ChatPanel() {
         )}
         {bufferingState === "buffering" && <BufferingIndicator />}
       </div>
+      {!isFollowing && (
+        <div
+          onClick={() => {
+            setIsFollowing(true);
+            scrollToBottom();
+          }}
+          style={{
+            position: "absolute",
+            bottom: 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            padding: "4px 14px",
+            background: "var(--accent)",
+            color: "#fff",
+            borderRadius: 12,
+            fontSize: 11,
+            cursor: "pointer",
+            zIndex: 5,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          }}
+        >
+          {t("llm.scrollToLatest")}
+        </div>
+      )}
     </div>
   );
 }

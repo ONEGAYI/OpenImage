@@ -173,26 +173,24 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
         onCompleted: (data) => {
           if (!data.message_id) return;
           const sessionName = data.session_name;
-          // 从后端重新加载消息，确保用户消息和 AI 消息都有正确的后端 ID
+          const updateSession = (s: LLMChatState) => ({
+            streamingText: "",
+            streamingThinking: "",
+            bufferingState: "idle" as const,
+            currentAiBlock: null as AiBlock | null,
+            abortController: null as AbortController | null,
+            chatSessions: s.chatSessions.map((cs) =>
+              cs.id === currentChatSessionId
+                ? { ...cs,
+                    ...(sessionName ? { name: sessionName } : {}),
+                    total_tokens: data.total_tokens ?? cs.total_tokens,
+                  }
+                : cs
+            ),
+          });
           api.listLLMMessages(currentChatSessionId).then((freshMessages) => {
-            set((s) => ({
-              messages: freshMessages,
-              streamingText: "",
-              streamingThinking: "",
-              bufferingState: "idle",
-              currentAiBlock: null,
-              abortController: null,
-              chatSessions: s.chatSessions.map((cs) =>
-                cs.id === currentChatSessionId
-                  ? { ...cs,
-                      ...(sessionName ? { name: sessionName } : {}),
-                      total_tokens: data.total_tokens ?? cs.total_tokens,
-                    }
-                  : cs
-              ),
-            }));
+            set((s) => ({ ...updateSession(s), messages: freshMessages }));
           }).catch(() => {
-            // 加载失败时回退到本地构建的消息
             const aiMsg: LLMMessage = {
               id: data.message_id,
               chat_session_id: currentChatSessionId,
@@ -206,22 +204,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
               created_at: new Date().toISOString(),
               deleted_at: null,
             };
-            set((s) => ({
-              messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
-              streamingText: "",
-              streamingThinking: "",
-              bufferingState: "idle",
-              currentAiBlock: null,
-              abortController: null,
-              chatSessions: s.chatSessions.map((cs) =>
-                cs.id === currentChatSessionId
-                  ? { ...cs,
-                      ...(sessionName ? { name: sessionName } : {}),
-                      total_tokens: data.total_tokens ?? cs.total_tokens,
-                    }
-                  : cs
-              ),
-            }));
+            set((s) => ({ ...updateSession(s), messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg] }));
           });
         },
         onError: (data) => {
