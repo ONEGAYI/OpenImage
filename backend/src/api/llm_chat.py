@@ -420,13 +420,15 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             log.debug("流结束 full_text=%dchars", len(full_text))
 
-            # 保存 AI 回复
+            # 保存 AI 回复（token_count = 累计值）
             ai_msg_id = _gen_id("lm")
-            # token_count 需涵盖全部输出：文本 + thinking + ai_block
-            token_count = max(
-                completion_tokens,
-                estimate_message_tokens("assistant", full_text, thinking_content, ai_block_data),
-            )
+            # 有 API usage 时直接赋值（已包含全部历史），无 usage 时用前一条累计值 + 估算
+            if prompt_tokens + completion_tokens > 0:
+                token_count = prompt_tokens + completion_tokens
+            else:
+                token_count = user_token_count + estimate_message_tokens(
+                    "assistant", full_text, thinking_content, ai_block_data,
+                )
             ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
 
             await conn.execute(
@@ -438,15 +440,11 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                  datetime.now(UTC).isoformat()),
             )
 
-            # 更新会话 token 统计（增量累加，优先 API usage 校准）
-            total_add = max(
-                prompt_tokens + completion_tokens,
-                user_token_count + token_count,
-            )
+            # 更新会话 token 统计（直接赋值，不再增量累加）
             now = datetime.now(UTC).isoformat()
             await conn.execute(
-                "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
-                (total_add, now, chat_id),
+                "UPDATE llm_chat_sessions SET total_tokens = ?, updated_at = ? WHERE id = ?",
+                (token_count, now, chat_id),
             )
 
             # 自动命名：首次回复后将默认名替换为用户首条消息摘要
