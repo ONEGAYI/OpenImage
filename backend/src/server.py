@@ -17,8 +17,8 @@ from src.api import generate as generate_api
 from src.api import images as images_api
 from src.api import settings as settings_api
 from src.api import inpaint as inpaint_api
-from src.api.llm_settings import router as llm_settings_api, LLM_SETTING_KEYS
-from src.api.llm_chat import router as llm_chat_api
+from src.api import llm_settings as llm_settings_api
+from src.api import llm_chat as llm_chat_api
 from src.core.llm_client import LLMClient
 
 try:
@@ -50,7 +50,7 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
 
         # LLM 设置
         llm_settings = {}
-        for key in LLM_SETTING_KEYS:
+        for key in llm_settings_api.LLM_SETTING_KEYS:
             val = await db.get_setting(key)
             llm_settings[key] = val
         app.state.llm_settings = llm_settings
