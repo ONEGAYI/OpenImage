@@ -103,3 +103,90 @@ async def delete_chat_session(chat_id: str, request: Request):
     await conn.execute("DELETE FROM llm_chat_sessions WHERE id = ?", (chat_id,))
     await conn.commit()
     return {"ok": True}
+
+
+# ── 消息 CRUD ──
+
+
+@router.get("/llm-chats/{chat_id}/messages")
+async def list_messages(chat_id: str, request: Request):
+    db = _db(request)
+    conn = db.connection()
+
+    # 清理超过 48h 的软删除记录
+    cutoff = (datetime.utcnow() - timedelta(hours=48)).isoformat()
+    await conn.execute(
+        "DELETE FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
+        (chat_id, cutoff),
+    )
+    await conn.commit()
+
+    cursor = await conn.execute(
+        "SELECT id, chat_session_id, role, content, ai_block, token_count, attachments, created_at, deleted_at "
+        "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
+        (chat_id,),
+    )
+    rows = await cursor.fetchall()
+    return [
+        {
+            "id": r[0], "chat_session_id": r[1], "role": r[2], "content": r[3],
+            "ai_block": r[4], "token_count": r[5], "attachments": r[6],
+            "created_at": r[7], "deleted_at": r[8],
+        }
+        for r in rows
+    ]
+
+
+@router.patch("/llm-messages/{message_id}")
+async def edit_message(message_id: str, request: Request, body: MessageEdit):
+    db = _db(request)
+    conn = db.connection()
+    await conn.execute(
+        "UPDATE llm_messages SET content = ? WHERE id = ?",
+        (body.content, message_id),
+    )
+    await conn.commit()
+    cursor = await conn.execute("SELECT * FROM llm_messages WHERE id = ?", (message_id,))
+    row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(404, "消息不存在")
+    return {"id": row[0], "content": row[3]}
+
+
+@router.delete("/llm-messages/{message_id}")
+async def delete_message(message_id: str, request: Request):
+    db = _db(request)
+    conn = db.connection()
+    now = datetime.utcnow().isoformat()
+    await conn.execute(
+        "UPDATE llm_messages SET deleted_at = ? WHERE id = ?",
+        (now, message_id),
+    )
+    await conn.commit()
+    return {"ok": True, "deleted_at": now}
+
+
+@router.post("/llm-messages/batch-delete")
+async def batch_delete_messages(request: Request, body: BatchDelete):
+    db = _db(request)
+    conn = db.connection()
+    now = datetime.utcnow().isoformat()
+    placeholders = ",".join("?" for _ in body.message_ids)
+    await conn.execute(
+        f"UPDATE llm_messages SET deleted_at = ? WHERE id IN ({placeholders})",
+        [now, *body.message_ids],
+    )
+    await conn.commit()
+    return {"ok": True, "count": len(body.message_ids)}
+
+
+@router.post("/llm-messages/{message_id}/undo-delete")
+async def undo_delete_message(message_id: str, request: Request):
+    db = _db(request)
+    conn = db.connection()
+    await conn.execute(
+        "UPDATE llm_messages SET deleted_at = NULL WHERE id = ?",
+        (message_id,),
+    )
+    await conn.commit()
+    return {"ok": True}
