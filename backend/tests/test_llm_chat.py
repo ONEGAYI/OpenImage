@@ -73,3 +73,51 @@ async def test_interrupted_404_for_missing_session(client):
         json={"content": "test"},
     )
     assert resp.status_code == 404
+
+
+async def test_interrupted_token_count_is_cumulative(client, chat_session):
+    """中断消息的 token_count 应为累计值（prev + 本条估算）。"""
+    # 第一条中断消息：prev=0，token_count = 0 + estimate
+    resp1 = await client.post(
+        f"/api/llm-chats/{chat_session}/messages/interrupted",
+        json={"content": "第一条回复"},
+    )
+    tc1 = resp1.json()["token_count"]
+    assert tc1 > 0
+
+    # 第二条中断消息：token_count 应 > tc1（累计值递增）
+    resp2 = await client.post(
+        f"/api/llm-chats/{chat_session}/messages/interrupted",
+        json={"content": "第二条回复"},
+    )
+    tc2 = resp2.json()["token_count"]
+    assert tc2 > tc1, f"累计值应递增: tc2={tc2} <= tc1={tc1}"
+
+
+async def test_delete_last_message(client, chat_session):
+    """删除最后一条消息应返回正确的 total_tokens。"""
+    # 保存两条消息
+    await client.post(
+        f"/api/llm-chats/{chat_session}/messages/interrupted",
+        json={"content": "第一条"},
+    )
+    resp2 = await client.post(
+        f"/api/llm-chats/{chat_session}/messages/interrupted",
+        json={"content": "第二条"},
+    )
+    tc2 = resp2.json()["token_count"]
+
+    # 删除最后一条
+    resp = await client.delete(f"/api/llm-chats/{chat_session}/messages/last")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    assert data["deleted_message_id"] == resp2.json()["id"]
+    # total_tokens 应等于第一条消息的 token_count（< tc2）
+    assert data["total_tokens"] < tc2
+
+
+async def test_delete_last_message_empty(client, chat_session):
+    """空会话删除最后一条应返回 404。"""
+    resp = await client.delete(f"/api/llm-chats/{chat_session}/messages/last")
+    assert resp.status_code == 404
