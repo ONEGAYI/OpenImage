@@ -52,13 +52,17 @@ async def update_llm_settings(request: Request, body: LLMSettingsUpdate):
     for key, value in updates.items():
         await db.set_setting(key, str(value) if not isinstance(value, str) else value)
 
-    # 更新内存缓存
+    # 更新内存缓存（保留原始类型，仅 db 存储转为字符串）
     app_settings = request.app.state.llm_settings
     for key, value in updates.items():
-        app_settings[key] = str(value) if not isinstance(value, str) else value
+        app_settings[key] = value
 
     # 重建 LLM 客户端
+    old_client = request.app.state.llm_client
     from src.core.llm_client import LLMClient
     request.app.state.llm_client = LLMClient.from_settings(app_settings)
+    if old_client and hasattr(old_client, "close"):
+        import asyncio
+        asyncio.ensure_future(old_client.close())
 
     return await get_llm_settings(request)

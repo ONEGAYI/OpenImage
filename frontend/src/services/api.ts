@@ -124,6 +124,11 @@ function connectSSE(url: string, body: unknown, handler: SSEEventHandler): Abort
     signal: controller.signal,
   })
     .then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        handler("error", { code: String(res.status), message: err.detail || res.statusText });
+        return;
+      }
       const reader = res.body?.getReader();
       if (!reader) return;
 
@@ -283,73 +288,17 @@ export function sendLLMChat(
   handler: LLMChatEventHandler,
 ): AbortController {
   const url = `${getBaseUrl()}/api/llm-chats/${chatId}/chat`;
-  const controller = new AbortController();
-
-  fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal: controller.signal,
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      handler.onError({ code: String(res.status), message: err.detail || res.statusText });
-      return;
-    }
-    const reader = res.body?.getReader();
-    if (!reader) return;
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      let currentEvent = "";
-      for (const line of lines) {
-        if (line.startsWith("event: ")) {
-          currentEvent = line.slice(7).trim();
-        } else if (line.startsWith("data: ")) {
-          const raw = line.slice(6);
-          try {
-            const data = JSON.parse(raw);
-            switch (currentEvent) {
-              case "token":
-                handler.onToken(data.text || "");
-                break;
-              case "buffering":
-                handler.onBuffering(data);
-                break;
-              case "ai_block":
-                handler.onAiBlock(data);
-                break;
-              case "parse_warning":
-                handler.onParseWarning(data);
-                break;
-              case "usage":
-                handler.onUsage(data);
-                break;
-              case "completed":
-                handler.onCompleted(data);
-                break;
-              case "error":
-                handler.onError(data);
-                break;
-            }
-          } catch {
-            // 忽略非 JSON 行
-          }
-        }
-      }
-    }
-  }).catch((err) => {
-    if (err.name !== "AbortError") {
-      handler.onError({ code: "fetch_error", message: err.message });
+  return connectSSE(url, body, (event, rawData) => {
+    const data = rawData as Record<string, unknown>;
+    switch (event) {
+      case "token": handler.onToken((data.text as string) || ""); break;
+      case "buffering": handler.onBuffering(data as { status: string; elapsed_ms: number }); break;
+      case "ai_block": handler.onAiBlock(data); break;
+      case "parse_warning": handler.onParseWarning(data as { status: string; raw_text: string }); break;
+      case "usage": handler.onUsage(data as { prompt_tokens: number; completion_tokens: number }); break;
+      case "completed": handler.onCompleted(data as { message_id: string; token_count: number }); break;
+      case "error":
+      case "network_error": handler.onError(data as { code: string; message: string }); break;
     }
   });
-
-  return controller;
 }

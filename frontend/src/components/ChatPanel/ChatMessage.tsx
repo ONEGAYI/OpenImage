@@ -29,15 +29,10 @@ export default function ChatMessage({ message, streamingText, currentAiBlock }: 
     );
   }
 
-  let aiBlock = null;
-  if (message.ai_block) {
-    try {
-      aiBlock = JSON.parse(message.ai_block);
-    } catch {}
-  }
-  if (streamingText !== undefined && currentAiBlock) {
-    aiBlock = currentAiBlock;
-  }
+  const aiBlock =
+    streamingText !== undefined && currentAiBlock
+      ? currentAiBlock
+      : (() => { try { return message.ai_block ? JSON.parse(message.ai_block) : null; } catch { return null; } })();
 
   return (
     <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>

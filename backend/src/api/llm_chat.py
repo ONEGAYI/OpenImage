@@ -1,7 +1,7 @@
 """LLM 聊天会话 + 消息 API。"""
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -72,7 +72,7 @@ async def create_chat_session(session_id: str, request: Request, body: ChatSessi
     db = _db(request)
     chat_id = _gen_id("lc")
     name = body.name if body else "新对话"
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
 
     conn = db.connection()
     await conn.execute(
@@ -91,7 +91,7 @@ async def create_chat_session(session_id: str, request: Request, body: ChatSessi
 async def rename_chat_session(chat_id: str, request: Request, body: ChatSessionRename):
     db = _db(request)
     conn = db.connection()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     await conn.execute(
         "UPDATE llm_chat_sessions SET name = ?, updated_at = ? WHERE id = ?",
         (body.name, now, chat_id),
@@ -124,7 +124,7 @@ async def list_messages(chat_id: str, request: Request):
     conn = db.connection()
 
     # 清理超过 48h 的软删除记录
-    cutoff = (datetime.utcnow() - timedelta(hours=48)).isoformat()
+    cutoff = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
     await conn.execute(
         "DELETE FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
         (chat_id, cutoff),
@@ -167,7 +167,7 @@ async def edit_message(message_id: str, request: Request, body: MessageEdit):
 async def delete_message(message_id: str, request: Request):
     db = _db(request)
     conn = db.connection()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     await conn.execute(
         "UPDATE llm_messages SET deleted_at = ? WHERE id = ?",
         (now, message_id),
@@ -180,7 +180,7 @@ async def delete_message(message_id: str, request: Request):
 async def batch_delete_messages(request: Request, body: BatchDelete):
     db = _db(request)
     conn = db.connection()
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     placeholders = ",".join("?" for _ in body.message_ids)
     await conn.execute(
         f"UPDATE llm_messages SET deleted_at = ? WHERE id IN ({placeholders})",
@@ -219,7 +219,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
     # 保存用户消息
     user_msg_id = _gen_id("lm")
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     attachments_json = json.dumps(body.attachments) if body.attachments else None
     await conn.execute(
         "INSERT INTO llm_messages (id, chat_session_id, role, content, attachments, created_at) "
@@ -303,7 +303,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             await conn.execute(
                 "INSERT INTO llm_messages (id, chat_session_id, role, content, ai_block, token_count, created_at) "
                 "VALUES (?, ?, 'assistant', ?, ?, ?, ?)",
-                (ai_msg_id, chat_id, full_text, ai_block_json, token_count, datetime.utcnow().isoformat()),
+                (ai_msg_id, chat_id, full_text, ai_block_json, token_count, datetime.now(UTC).isoformat()),
             )
 
             # 更新会话 token 统计
@@ -311,12 +311,12 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             if total_add > 0:
                 await conn.execute(
                     "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
-                    (total_add, datetime.utcnow().isoformat(), chat_id),
+                    (total_add, datetime.now(UTC).isoformat(), chat_id),
                 )
             else:
                 await conn.execute(
                     "UPDATE llm_chat_sessions SET updated_at = ? WHERE id = ?",
-                    (datetime.utcnow().isoformat(), chat_id),
+                    (datetime.now(UTC).isoformat(), chat_id),
                 )
             await conn.commit()
 

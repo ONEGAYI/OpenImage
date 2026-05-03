@@ -127,6 +127,7 @@
     "modelName": "LLM Model Name",
     "visionSupport": "Vision Support",
     "systemPrompt": "System Prompt",
+    "systemPromptPlaceholder": "You are a professional image prompt assistant…",
     "settingsTitle": "LLM AI Assistant Settings"
   }
 }

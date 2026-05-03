@@ -18,9 +18,6 @@ interface LLMChatState {
   currentAiBlock: AiBlock | null;
   abortController: AbortController | null;
 
-  // token
-  totalTokens: number;
-
   // UI 状态
   panelExpanded: boolean;
 
@@ -38,7 +35,11 @@ interface LLMChatState {
     formResponse?: Record<string, string>,
   ) => void;
   cancelStream: () => void;
-  resetStreamState: () => void;
+}
+
+function currentSessionTokens(sessions: LLMChatSession[], chatId: string | null): number {
+  if (!chatId) return 0;
+  return sessions.find((s) => s.id === chatId)?.total_tokens || 0;
 }
 
 export const useLLMChatStore = create<LLMChatState>((set, get) => ({
@@ -51,7 +52,6 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
   bufferElapsed: 0,
   currentAiBlock: null,
   abortController: null,
-  totalTokens: 0,
   panelExpanded: false,
 
   toggleAI: () => {
@@ -74,17 +74,14 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
       chatSessions: [session, ...s.chatSessions],
       currentChatSessionId: session.id,
       messages: [],
-      totalTokens: 0,
     }));
   },
 
   selectChatSession: async (chatId: string) => {
     const messages = await api.listLLMMessages(chatId);
-    const session = get().chatSessions.find((s) => s.id === chatId);
     set({
       currentChatSessionId: chatId,
       messages,
-      totalTokens: session?.total_tokens || 0,
     });
   },
 
@@ -99,10 +96,13 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
 
   deleteChatSession: async (chatId: string, sessionId: string) => {
     await api.deleteLLMChatSession(chatId);
-    await get().loadChatSessions(sessionId);
-    if (get().currentChatSessionId === chatId) {
-      set({ currentChatSessionId: null, messages: [], totalTokens: 0 });
-    }
+    const sessions = await api.listLLMChatSessions(sessionId);
+    set((s) => ({
+      chatSessions: sessions,
+      ...(s.currentChatSessionId === chatId
+        ? { currentChatSessionId: null, messages: [] }
+        : {}),
+    }));
   },
 
   sendMessage: (content, attachments, formResponse) => {
@@ -149,21 +149,34 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
           set({ bufferingState: "idle" });
         },
         onUsage: (data) => {
+          const add = data.prompt_tokens + data.completion_tokens;
           set((s) => ({
-            totalTokens:
-              s.totalTokens + data.prompt_tokens + data.completion_tokens,
+            chatSessions: s.chatSessions.map((cs) =>
+              cs.id === s.currentChatSessionId
+                ? { ...cs, total_tokens: cs.total_tokens + add }
+                : cs,
+            ),
           }));
         },
-        onCompleted: () => {
-          const chatId = get().currentChatSessionId;
-          if (chatId) {
-            api.listLLMMessages(chatId).then((msgs) => set({ messages: msgs }));
-          }
-          set({
+        onCompleted: (data) => {
+          const aiMsg: LLMMessage = {
+            id: data.message_id,
+            chat_session_id: currentChatSessionId,
+            role: "assistant",
+            content: get().streamingText,
+            ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
+            token_count: data.token_count,
+            attachments: null,
+            created_at: new Date().toISOString(),
+            deleted_at: null,
+          };
+          set((s) => ({
+            messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
             streamingText: "",
             bufferingState: "idle",
+            currentAiBlock: null,
             abortController: null,
-          });
+          }));
         },
         onError: (data) => {
           const errMsg: LLMMessage = {
@@ -181,6 +194,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
             messages: [...s.messages, errMsg],
             streamingText: "",
             bufferingState: "idle",
+            currentAiBlock: null,
             abortController: null,
           }));
         },
@@ -192,15 +206,12 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
 
   cancelStream: () => {
     get().abortController?.abort();
-    set({ streamingText: "", bufferingState: "idle", abortController: null });
-  },
-
-  resetStreamState: () => {
     set({
       streamingText: "",
       bufferingState: "idle",
       currentAiBlock: null,
       bufferElapsed: 0,
+      abortController: null,
     });
   },
 }));

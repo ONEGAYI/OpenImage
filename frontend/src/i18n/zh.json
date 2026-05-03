@@ -127,6 +127,7 @@
     "modelName": "LLM 模型名称",
     "visionSupport": "支持图像识别",
     "systemPrompt": "系统提示词",
+    "systemPromptPlaceholder": "你是一个专业的图片提示词助手…",
     "settingsTitle": "LLM AI 助手设置"
   }
 }

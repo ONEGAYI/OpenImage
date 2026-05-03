@@ -14,12 +14,7 @@ export default function SuggestionCards({ block }: Props) {
   const handleUseForGeneration = (prompt: string) => {
     const sessionId = useSessionStore.getState().activeSessionId;
     if (!sessionId) return;
-    const images = useGenerationStore.getState().attachments.map((a) => ({
-      type: "base64" as const,
-      data: a.data,
-      media_type: a.media_type,
-    }));
-    useGenerationStore.getState().startGeneration(sessionId, prompt, undefined, images);
+    useGenerationStore.getState().startGeneration(sessionId, prompt);
   };
 
   const handleEditAndUse = (prompt: string) => {

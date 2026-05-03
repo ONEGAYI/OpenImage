@@ -16,6 +16,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [llmBaseUrl, setLLMBaseUrl] = useState("");
   const [llmModelName, setLLMModelName] = useState("");
   const [llmVision, setLLMVision] = useState(false);
+  const [llmSystemPrompt, setLLMSystemPrompt] = useState("");
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -34,6 +35,7 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
       if (s.llm_base_url) setLLMBaseUrl(s.llm_base_url);
       if (s.llm_model_name) setLLMModelName(s.llm_model_name);
       if (s.llm_supports_vision) setLLMVision(s.llm_supports_vision);
+      if (s.llm_system_prompt) setLLMSystemPrompt(s.llm_system_prompt);
     }).catch(() => {});
   }, []);
 
@@ -41,19 +43,22 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      await updateSettings({
-        api_key: apiKey.trim(),
-        ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
-        api_mode: apiMode,
-        model_name: modelName.trim(),
-      });
+      await Promise.all([
+        updateSettings({
+          api_key: apiKey.trim(),
+          ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
+          api_mode: apiMode,
+          model_name: modelName.trim(),
+        }),
+        updateLLMSettings({
+          llm_api_key: llmApiKey.trim() || undefined,
+          llm_base_url: llmBaseUrl.trim() || undefined,
+          llm_model_name: llmModelName.trim() || undefined,
+          llm_supports_vision: llmVision,
+          llm_system_prompt: llmSystemPrompt.trim() || undefined,
+        }),
+      ]);
       setMessage(t("settings.saved"));
-      await updateLLMSettings({
-        llm_api_key: llmApiKey.trim() || undefined,
-        llm_base_url: llmBaseUrl.trim() || undefined,
-        llm_model_name: llmModelName.trim() || undefined,
-        llm_supports_vision: llmVision,
-      });
       setTimeout(onClose, 800);
     } catch (err) {
       setMessage(`Error: ${err}`);
@@ -186,6 +191,17 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           />
           <label className="text-sm cursor-pointer" style={{ color: "var(--muted)" }}>{t("llm.visionSupport")}</label>
         </div>
+
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("llm.systemPrompt")}</label>
+        <textarea
+          value={llmSystemPrompt} onChange={(e) => setLLMSystemPrompt(e.target.value)}
+          placeholder={t("llm.systemPromptPlaceholder")}
+          rows={3}
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none resize-none"
+          style={inputStyle(false)}
+          onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
+          onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
+        />
 
         {message && <div className="text-sm mb-3" style={{ color: "var(--muted)" }}>{message}</div>}
 
