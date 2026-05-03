@@ -39,10 +39,16 @@ class BatchDelete(BaseModel):
     message_ids: list[str]
 
 
+class ChatContext(BaseModel):
+    aspect_ratio: str | None = None
+    size_label: str | None = None
+
+
 class ChatRequest(BaseModel):
     content: str
     attachments: list[dict] | None = None
     form_response: dict | None = None
+    context: ChatContext | None = None
 
 
 # ── 聊天会话 CRUD ──
@@ -253,13 +259,29 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                 pass
         history.append(msg)
 
-    # 获取系统提示词
-    system_prompt = request.app.state.llm_settings.get("llm_system_prompt", "")
+    from src.core.llm_prompt import compose_system_prompt
+
+    # 查询当前会话图片（用于 L3 上下文注入）
+    cursor = await conn.execute(
+        "SELECT prompt FROM images WHERE session_id = ? ORDER BY created_at DESC LIMIT 5",
+        (session_row[0],),
+    )
+    img_rows = await cursor.fetchall()
+    session_images = [{"prompt": r[0]} for r in img_rows] if img_rows else None
+
+    # 组装 4 层系统提示词
+    user_custom = request.app.state.llm_settings.get("llm_system_prompt") or None
+    system_prompt = compose_system_prompt(
+        user_custom=user_custom,
+        aspect_ratio=body.context.aspect_ratio if body.context else None,
+        size_label=body.context.size_label if body.context else None,
+        session_images=session_images,
+    )
 
     # 构建消息列表
     messages = llm_client.build_messages(
-        system_prompt=system_prompt or "你是一个专业的图片提示词助手。",
-        history=history[:-1],  # 排除刚保存的用户消息（build_messages 会添加）
+        system_prompt=system_prompt,
+        history=history[:-1],
         user_content=body.content,
         attachments=body.attachments or [],
     )
