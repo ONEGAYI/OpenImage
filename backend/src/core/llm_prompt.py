@@ -16,7 +16,7 @@ BASE_IDENTITY = """你是 OpenImage 的 AI 图片提示词助手。
 - questions 类型：向用户提问，收集关键信息
 - suggestions 类型：提供优化后的提示词方案供用户选择
 
-在回复中使用 ```ai-block 标记包裹 JSON 数据。"""
+在回复中使用 <ai_block> 标签包裹 JSON 数据（闭合标签 </ai_block>）。"""
 
 
 def compose_system_prompt(

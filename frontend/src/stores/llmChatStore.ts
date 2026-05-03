@@ -178,12 +178,17 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
             created_at: new Date().toISOString(),
             deleted_at: null,
           };
+          const sessionName = data.session_name;
           set((s) => ({
             messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
             streamingText: "",
             bufferingState: "idle",
             currentAiBlock: null,
             abortController: null,
+            ...(sessionName
+              ? { chatSessions: s.chatSessions.map((cs) =>
+                  cs.id === currentChatSessionId ? { ...cs, name: sessionName } : cs) }
+              : {}),
           }));
         },
         onError: (data) => {

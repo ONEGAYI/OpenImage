@@ -278,7 +278,7 @@ export interface LLMChatEventHandler {
   onAiBlock: (data: Record<string, unknown>) => void;
   onParseWarning: (data: { status: string; raw_text: string }) => void;
   onUsage: (data: { prompt_tokens: number; completion_tokens: number }) => void;
-  onCompleted: (data: { message_id: string; token_count: number }) => void;
+  onCompleted: (data: { message_id: string; token_count: number; session_name?: string }) => void;
   onError: (data: { code: string; message: string }) => void;
 }
 
@@ -296,7 +296,7 @@ export function sendLLMChat(
       case "ai_block": handler.onAiBlock(data); break;
       case "parse_warning": handler.onParseWarning(data as { status: string; raw_text: string }); break;
       case "usage": handler.onUsage(data as { prompt_tokens: number; completion_tokens: number }); break;
-      case "completed": handler.onCompleted(data as { message_id: string; token_count: number }); break;
+      case "completed": handler.onCompleted(data as { message_id: string; token_count: number; session_name?: string }); break;
       case "error":
       case "network_error": handler.onError(data as { code: string; message: string }); break;
     }

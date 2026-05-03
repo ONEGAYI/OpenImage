@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from src.core.llm_prompt import compose_system_prompt
 from src.core.llm_tokenizer import estimate_tokens
 
+DEFAULT_CHAT_NAME = "新对话"
+
 router = APIRouter(prefix="/api", tags=["llm-chat"])
 
 
@@ -25,7 +27,7 @@ def _gen_id(prefix: str) -> str:
 
 
 class ChatSessionCreate(BaseModel):
-    name: str = "新对话"
+    name: str = DEFAULT_CHAT_NAME
 
 
 class ChatSessionRename(BaseModel):
@@ -78,7 +80,7 @@ async def list_chat_sessions(session_id: str, request: Request):
 async def create_chat_session(session_id: str, request: Request, body: ChatSessionCreate = None):
     db = _db(request)
     chat_id = _gen_id("lc")
-    name = body.name if body else "新对话"
+    name = body.name if body else DEFAULT_CHAT_NAME
     now = datetime.now(UTC).isoformat()
 
     conn = db.connection()
@@ -319,19 +321,42 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             # 更新会话 token 统计
             total_add = prompt_tokens + completion_tokens
+            now = datetime.now(UTC).isoformat()
             if total_add > 0:
                 await conn.execute(
                     "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
-                    (total_add, datetime.now(UTC).isoformat(), chat_id),
+                    (total_add, now, chat_id),
                 )
             else:
                 await conn.execute(
                     "UPDATE llm_chat_sessions SET updated_at = ? WHERE id = ?",
-                    (datetime.now(UTC).isoformat(), chat_id),
+                    (now, chat_id),
                 )
+
+            # 自动命名：首次回复后将默认名替换为用户首条消息摘要
+            session_name = None
+            cursor = await conn.execute(
+                "SELECT content FROM llm_messages "
+                "WHERE chat_session_id = ? AND role = 'user' AND deleted_at IS NULL "
+                "ORDER BY created_at ASC LIMIT 1",
+                (chat_id,),
+            )
+            first_msg = await cursor.fetchone()
+            if first_msg and first_msg[0].strip():
+                name = first_msg[0].replace("\n", " ").strip()[:30]
+                cursor = await conn.execute(
+                    "UPDATE llm_chat_sessions SET name = ? WHERE id = ? AND name = ?",
+                    (name, chat_id, DEFAULT_CHAT_NAME),
+                )
+                if cursor.rowcount > 0:
+                    session_name = name
+
             await conn.commit()
 
-            yield f'event: completed\ndata: {json.dumps({"message_id": ai_msg_id, "token_count": token_count}, ensure_ascii=False)}\n\n'
+            completed_data = {"message_id": ai_msg_id, "token_count": token_count}
+            if session_name:
+                completed_data["session_name"] = session_name
+            yield f'event: completed\ndata: {json.dumps(completed_data, ensure_ascii=False)}\n\n'
 
         except Exception as e:
             yield f'event: error\ndata: {json.dumps({"code": "stream_error", "message": str(e)}, ensure_ascii=False)}\n\n'
