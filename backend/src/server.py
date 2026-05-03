@@ -17,6 +17,9 @@ from src.api import generate as generate_api
 from src.api import images as images_api
 from src.api import settings as settings_api
 from src.api import inpaint as inpaint_api
+from src.api import llm_settings as llm_settings_api
+from src.api import llm_chat as llm_chat_api
+from src.core.llm_client import LLMClient
 
 try:
     from src.build_info import BUILD_TIMESTAMP
@@ -45,6 +48,14 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         app.state.settings = settings
         app.state.client = ImageClient.from_settings(settings)
 
+        # LLM 设置
+        llm_settings = {}
+        for key in llm_settings_api.LLM_SETTING_KEYS:
+            val = await db.get_setting(key)
+            llm_settings[key] = val
+        app.state.llm_settings = llm_settings
+        app.state.llm_client = LLMClient.from_settings(llm_settings)
+
         yield
         await db.close()
 
@@ -70,6 +81,8 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
     app.include_router(images_api.router)
     app.include_router(settings_api.router)
     app.include_router(inpaint_api.router)
+    app.include_router(llm_settings_api.router)
+    app.include_router(llm_chat_api.router)
 
     return app
 

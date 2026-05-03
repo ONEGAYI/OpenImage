@@ -93,3 +93,80 @@ export interface AttachedFile {
   media_type: string;
   preview_url: string;
 }
+
+// ── LLM AI 助手 ──
+
+export interface LLMChatSession {
+  id: string;
+  session_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  total_tokens: number;
+}
+
+export interface LLMMessage {
+  id: string;
+  chat_session_id: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  ai_block: string | null;
+  token_count: number;
+  attachments: string | null;
+  created_at: string;
+  deleted_at: string | null;
+}
+
+export interface LLMSettings {
+  llm_api_key_set: boolean;
+  llm_api_key_preview: string | null;
+  llm_api_key: string | null;
+  llm_base_url: string | null;
+  llm_model_name: string | null;
+  llm_supports_vision: boolean | null;
+  llm_system_prompt: string | null;
+}
+
+export interface LLMSettingsUpdate {
+  llm_api_key?: string;
+  llm_base_url?: string;
+  llm_model_name?: string;
+  llm_supports_vision?: boolean;
+  llm_system_prompt?: string;
+}
+
+export interface AiBlockQuestions {
+  type: "questions";
+  message: string;
+  fields: QuestionField[];
+}
+
+export interface AiBlockSuggestions {
+  type: "suggestions";
+  message: string;
+  items: SuggestionItem[];
+}
+
+export type AiBlock = AiBlockQuestions | AiBlockSuggestions;
+
+export interface QuestionField {
+  id: string;
+  label: string;
+  widget: "text" | "textarea" | "radio" | "select" | "checkbox";
+  options?: string[];
+  placeholder?: string;
+  required: boolean;
+}
+
+export interface SuggestionItem {
+  id: string;
+  title: string;
+  prompt: string;
+  recommended?: boolean;
+}
+
+export interface LLMChatRequest {
+  content: string;
+  attachments?: Array<{ data: string; media_type: string }>;
+  form_response?: Record<string, string>;
+}

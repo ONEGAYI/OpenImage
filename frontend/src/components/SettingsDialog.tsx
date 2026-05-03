@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getSettings, updateSettings } from "../services/api";
+import { getSettings, updateSettings, getLLMSettings, updateLLMSettings } from "../services/api";
 
 export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -12,6 +12,11 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState("");
   const [resolvedEndpoint, setResolvedEndpoint] = useState("");
   const [fullVersion, setFullVersion] = useState("");
+  const [llmApiKey, setLLMApiKey] = useState("");
+  const [llmBaseUrl, setLLMBaseUrl] = useState("");
+  const [llmModelName, setLLMModelName] = useState("");
+  const [llmVision, setLLMVision] = useState(false);
+  const [llmSystemPrompt, setLLMSystemPrompt] = useState("");
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -24,16 +29,35 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
     });
   }, []);
 
+  useEffect(() => {
+    getLLMSettings().then((s) => {
+      if (s.llm_api_key) setLLMApiKey(s.llm_api_key);
+      if (s.llm_base_url) setLLMBaseUrl(s.llm_base_url);
+      if (s.llm_model_name) setLLMModelName(s.llm_model_name);
+      if (s.llm_supports_vision) setLLMVision(s.llm_supports_vision);
+      if (s.llm_system_prompt) setLLMSystemPrompt(s.llm_system_prompt);
+    }).catch(() => {});
+  }, []);
+
   const handleSave = async () => {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      await updateSettings({
-        api_key: apiKey.trim(),
-        ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
-        api_mode: apiMode,
-        model_name: modelName.trim(),
-      });
+      await Promise.all([
+        updateSettings({
+          api_key: apiKey.trim(),
+          ...(baseUrl.trim() && { base_url: baseUrl.trim() }),
+          api_mode: apiMode,
+          model_name: modelName.trim(),
+        }),
+        updateLLMSettings({
+          llm_api_key: llmApiKey.trim() || undefined,
+          llm_base_url: llmBaseUrl.trim() || undefined,
+          llm_model_name: llmModelName.trim() || undefined,
+          llm_supports_vision: llmVision,
+          llm_system_prompt: llmSystemPrompt.trim() || undefined,
+        }),
+      ]);
       setMessage(t("settings.saved"));
       setTimeout(onClose, 800);
     } catch (err) {
@@ -119,6 +143,65 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
           onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
         />
         <div className="text-xs mb-4" style={{ color: "var(--faint)" }}>{t("settings.modelNameHint")}</div>
+
+        {/* 分隔线 */}
+        <div style={{ borderTop: "1px solid var(--border-s)", margin: "12px 0" }} />
+
+        {/* LLM AI 助手设置 */}
+        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent)", marginBottom: 8 }}>
+          {t("llm.settingsTitle")}
+        </div>
+
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("llm.apiKey")}</label>
+        <input
+          type="password" value={llmApiKey} onChange={(e) => setLLMApiKey(e.target.value)}
+          placeholder="sk-..."
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none"
+          style={inputStyle(false)}
+          onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
+          onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
+        />
+
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("llm.baseUrl")}</label>
+        <input
+          type="text" value={llmBaseUrl} onChange={(e) => setLLMBaseUrl(e.target.value)}
+          placeholder="http://localhost:11434/v1"
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none"
+          style={inputStyle(false)}
+          onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
+          onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
+        />
+
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("llm.modelName")}</label>
+        <input
+          type="text" value={llmModelName} onChange={(e) => setLLMModelName(e.target.value)}
+          placeholder="llama3.1:8b"
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none"
+          style={inputStyle(false)}
+          onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
+          onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
+        />
+
+        <div className="flex items-center gap-2 mb-4">
+          <input
+            type="checkbox"
+            checked={llmVision}
+            onChange={(e) => setLLMVision(e.target.checked)}
+            className="cursor-pointer"
+          />
+          <label className="text-sm cursor-pointer" style={{ color: "var(--muted)" }}>{t("llm.visionSupport")}</label>
+        </div>
+
+        <label className="block text-sm mb-1" style={{ color: "var(--muted)" }}>{t("llm.systemPrompt")}</label>
+        <textarea
+          value={llmSystemPrompt} onChange={(e) => setLLMSystemPrompt(e.target.value)}
+          placeholder={t("llm.systemPromptPlaceholder")}
+          rows={3}
+          className="w-full border rounded-lg px-3 py-2 text-sm mb-3 outline-none resize-none"
+          style={inputStyle(false)}
+          onFocus={(e) => { Object.assign(e.currentTarget.style, inputStyle(true)); }}
+          onBlur={(e) => { Object.assign(e.currentTarget.style, inputStyle(false)); }}
+        />
 
         {message && <div className="text-sm mb-3" style={{ color: "var(--muted)" }}>{message}</div>}
 
