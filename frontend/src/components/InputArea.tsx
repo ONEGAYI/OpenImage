@@ -119,7 +119,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
 
   return (
     <div
-      className="border-t flex flex-col gap-2"
+      className="border-t flex flex-col gap-2 relative"
       style={{
         background: "var(--bg)",
         borderColor: "var(--border)",

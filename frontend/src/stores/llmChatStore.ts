@@ -14,6 +14,7 @@ interface LLMChatState {
 
   // 流式状态
   streamingText: string;
+  streamingThinking: string;
   bufferingState: "idle" | "streaming" | "buffering" | "ready";
   bufferElapsed: number;
   currentAiBlock: AiBlock | null;
@@ -38,17 +39,13 @@ interface LLMChatState {
   cancelStream: () => void;
 }
 
-function currentSessionTokens(sessions: LLMChatSession[], chatId: string | null): number {
-  if (!chatId) return 0;
-  return sessions.find((s) => s.id === chatId)?.total_tokens || 0;
-}
-
 export const useLLMChatStore = create<LLMChatState>((set, get) => ({
   aiEnabled: false,
   currentChatSessionId: null,
   chatSessions: [],
   messages: [],
   streamingText: "",
+  streamingThinking: "",
   bufferingState: "idle",
   bufferElapsed: 0,
   currentAiBlock: null,
@@ -119,6 +116,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
 
     set({
       streamingText: "",
+      streamingThinking: "",
       bufferingState: "streaming",
       currentAiBlock: null,
     });
@@ -131,6 +129,8 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
       ai_block: null,
       token_count: 0,
       attachments: attachments ? JSON.stringify(attachments) : null,
+      thinking_content: null,
+      thinking_duration_ms: null,
       created_at: new Date().toISOString(),
       deleted_at: null,
     };
@@ -142,6 +142,9 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
       {
         onToken: (text) => {
           set((s) => ({ streamingText: s.streamingText + text }));
+        },
+        onThinking: (text) => {
+          set((s) => ({ streamingThinking: s.streamingThinking + text }));
         },
         onBuffering: (data) => {
           set({
@@ -167,6 +170,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
           }));
         },
         onCompleted: (data) => {
+          if (!data.message_id) return;
           const aiMsg: LLMMessage = {
             id: data.message_id,
             chat_session_id: currentChatSessionId,
@@ -175,6 +179,8 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
             ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
             token_count: data.token_count,
             attachments: null,
+            thinking_content: data.thinking_content || get().streamingThinking || null,
+            thinking_duration_ms: data.thinking_duration_ms ?? null,
             created_at: new Date().toISOString(),
             deleted_at: null,
           };
@@ -182,6 +188,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
           set((s) => ({
             messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
             streamingText: "",
+            streamingThinking: "",
             bufferingState: "idle",
             currentAiBlock: null,
             abortController: null,
@@ -200,12 +207,15 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
             ai_block: null,
             token_count: 0,
             attachments: null,
+            thinking_content: null,
+            thinking_duration_ms: null,
             created_at: new Date().toISOString(),
             deleted_at: null,
           };
           set((s) => ({
             messages: [...s.messages, errMsg],
             streamingText: "",
+            streamingThinking: "",
             bufferingState: "idle",
             currentAiBlock: null,
             abortController: null,
@@ -221,6 +231,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     get().abortController?.abort();
     set({
       streamingText: "",
+      streamingThinking: "",
       bufferingState: "idle",
       currentAiBlock: null,
       bufferElapsed: 0,

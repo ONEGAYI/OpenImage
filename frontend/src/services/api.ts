@@ -274,11 +274,18 @@ export async function undoDeleteLLMMessage(messageId: string): Promise<void> {
 // SSE 聊天事件 handler 类型
 export interface LLMChatEventHandler {
   onToken: (text: string) => void;
+  onThinking: (text: string) => void;
   onBuffering: (data: { status: string; elapsed_ms: number }) => void;
   onAiBlock: (data: Record<string, unknown>) => void;
   onParseWarning: (data: { status: string; raw_text: string }) => void;
   onUsage: (data: { prompt_tokens: number; completion_tokens: number }) => void;
-  onCompleted: (data: { message_id: string; token_count: number; session_name?: string }) => void;
+  onCompleted: (data: {
+    message_id: string;
+    token_count: number;
+    session_name?: string;
+    thinking_content?: string;
+    thinking_duration_ms?: number;
+  }) => void;
   onError: (data: { code: string; message: string }) => void;
 }
 
@@ -291,6 +298,7 @@ export function sendLLMChat(
   return connectSSE(url, body, (event, rawData) => {
     const data = rawData as Record<string, unknown>;
     switch (event) {
+      case "thinking": handler.onThinking((data.text as string) || ""); break;
       case "token": handler.onToken((data.text as string) || ""); break;
       case "buffering": handler.onBuffering(data as { status: string; elapsed_ms: number }); break;
       case "ai_block": handler.onAiBlock(data); break;

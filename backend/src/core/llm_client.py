@@ -4,6 +4,7 @@
 """
 import json
 import re
+import time
 from dataclasses import dataclass, field
 from typing import AsyncGenerator
 
@@ -12,7 +13,7 @@ import httpx
 
 @dataclass
 class StreamEvent:
-    type: str  # "token" | "buffering" | "ai_block" | "usage" | "parse_warning" | "completed" | "error"
+    type: str  # "token" | "thinking" | "buffering" | "ai_block" | "usage" | "parse_warning" | "completed" | "error"
     data: dict = field(default_factory=dict)
 
 
@@ -80,6 +81,8 @@ class LLMClient:
         pending = ""       # 尚未输出的文本（可能包含不完整的标签前缀）
         ai_block_buf = ""
         in_ai_block = False
+        full_thinking = ""
+        thinking_start: float | None = None
 
         OPEN_TAG = "<ai_block>"
         CLOSE_TAG = "</ai_block>"
@@ -128,7 +131,15 @@ class LLMClient:
                     continue
                 delta = choices[0].get("delta", {})
                 token_text = delta.get("content", "")
-                if not token_text:
+                reasoning_text = delta.get("reasoning_content", "")
+
+                if reasoning_text:
+                    if thinking_start is None:
+                        thinking_start = time.monotonic()
+                    full_thinking += reasoning_text
+                    yield StreamEvent(type="thinking", data={"text": reasoning_text})
+
+                if not token_text and not reasoning_text:
                     continue
 
                 full_text += token_text
@@ -191,7 +202,12 @@ class LLMClient:
                 data={"status": "unclosed_ai_block", "raw_text": ai_block_buf},
             )
 
-        yield StreamEvent(type="completed", data={"full_text": full_text})
+        completed_data: dict = {"full_text": full_text}
+        if full_thinking:
+            duration = (time.monotonic() - thinking_start) * 1000 if thinking_start else 0
+            completed_data["thinking_content"] = full_thinking
+            completed_data["thinking_duration_ms"] = int(duration)
+        yield StreamEvent(type="completed", data=completed_data)
 
     @staticmethod
     def extract_ai_block(text: str) -> dict | None:

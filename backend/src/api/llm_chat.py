@@ -141,7 +141,8 @@ async def list_messages(chat_id: str, request: Request):
     await conn.commit()
 
     cursor = await conn.execute(
-        "SELECT id, chat_session_id, role, content, ai_block, token_count, attachments, created_at, deleted_at "
+        "SELECT id, chat_session_id, role, content, ai_block, token_count, attachments, "
+        "thinking_content, thinking_duration_ms, created_at, deleted_at "
         "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
         (chat_id,),
     )
@@ -150,7 +151,8 @@ async def list_messages(chat_id: str, request: Request):
         {
             "id": r[0], "chat_session_id": r[1], "role": r[2], "content": r[3],
             "ai_block": r[4], "token_count": r[5], "attachments": r[6],
-            "created_at": r[7], "deleted_at": r[8],
+            "thinking_content": r[7], "thinking_duration_ms": r[8],
+            "created_at": r[9], "deleted_at": r[10],
         }
         for r in rows
     ]
@@ -292,16 +294,24 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
         ai_block_data = None
         prompt_tokens = 0
         completion_tokens = 0
+        thinking_content = ""
+        thinking_duration_ms = 0
 
         try:
             async for event in llm_client.chat_stream(messages):
                 if event.type == "token":
                     full_text += event.data["text"]
+                elif event.type == "thinking":
+                    thinking_content += event.data["text"]
                 elif event.type == "ai_block":
                     ai_block_data = event.data
                 elif event.type == "usage":
                     prompt_tokens = event.data.get("prompt_tokens", 0)
                     completion_tokens = event.data.get("completion_tokens", 0)
+                elif event.type == "completed":
+                    thinking_content = thinking_content or event.data.get("thinking_content", "")
+                    thinking_duration_ms = event.data.get("thinking_duration_ms", 0)
+                    continue  # 不转发 llm_client 的 completed，由后面保存完的 completed 取代
 
                 yield f"event: {event.type}\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
 
@@ -314,9 +324,12 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
 
             await conn.execute(
-                "INSERT INTO llm_messages (id, chat_session_id, role, content, ai_block, token_count, created_at) "
-                "VALUES (?, ?, 'assistant', ?, ?, ?, ?)",
-                (ai_msg_id, chat_id, full_text, ai_block_json, token_count, datetime.now(UTC).isoformat()),
+                "INSERT INTO llm_messages "
+                "(id, chat_session_id, role, content, ai_block, token_count, thinking_content, thinking_duration_ms, created_at) "
+                "VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?)",
+                (ai_msg_id, chat_id, full_text, ai_block_json, token_count,
+                 thinking_content or None, thinking_duration_ms or None,
+                 datetime.now(UTC).isoformat()),
             )
 
             # 更新会话 token 统计
@@ -354,6 +367,9 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             await conn.commit()
 
             completed_data = {"message_id": ai_msg_id, "token_count": token_count}
+            if thinking_content:
+                completed_data["thinking_content"] = thinking_content
+                completed_data["thinking_duration_ms"] = thinking_duration_ms
             if session_name:
                 completed_data["session_name"] = session_name
             yield f'event: completed\ndata: {json.dumps(completed_data, ensure_ascii=False)}\n\n'

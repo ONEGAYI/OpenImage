@@ -1,13 +1,15 @@
-import { LLMMessage } from "../../types";
+import { AiBlock, LLMMessage } from "../../types";
 import AiBlockRenderer from "./AiBlockRenderer";
+import ThinkingCard from "./ThinkingCard";
 
 interface Props {
   message: LLMMessage;
   streamingText?: string;
-  currentAiBlock?: Record<string, unknown> | null;
+  currentAiBlock?: AiBlock | null;
+  streamingThinking?: string;
 }
 
-export default function ChatMessage({ message, streamingText, currentAiBlock }: Props) {
+export default function ChatMessage({ message, streamingText, currentAiBlock, streamingThinking }: Props) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -29,10 +31,14 @@ export default function ChatMessage({ message, streamingText, currentAiBlock }: 
     );
   }
 
+  const isStreaming = streamingText !== undefined;
   const aiBlock =
-    streamingText !== undefined && currentAiBlock
+    isStreaming && currentAiBlock
       ? currentAiBlock
       : (() => { try { return message.ai_block ? JSON.parse(message.ai_block) : null; } catch { return null; } })();
+
+  const thinkingContent = isStreaming ? streamingThinking : message.thinking_content;
+  const thinkingDuration = isStreaming ? null : message.thinking_duration_ms;
 
   return (
     <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
@@ -48,11 +54,18 @@ export default function ChatMessage({ message, streamingText, currentAiBlock }: 
             fontSize: 13,
           }}
         >
-          {streamingText !== undefined ? streamingText || "..." : message.content}
-          {streamingText !== undefined && streamingText && (
+          {isStreaming ? streamingText || "..." : message.content}
+          {isStreaming && streamingText && (
             <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
           )}
         </div>
+        {thinkingContent && (
+          <ThinkingCard
+            content={thinkingContent}
+            durationMs={thinkingDuration}
+            streaming={isStreaming}
+          />
+        )}
         {aiBlock && <AiBlockRenderer block={aiBlock} />}
       </div>
     </div>

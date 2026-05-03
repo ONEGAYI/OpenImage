@@ -113,6 +113,8 @@ export interface LLMMessage {
   ai_block: string | null;
   token_count: number;
   attachments: string | null;
+  thinking_content: string | null;
+  thinking_duration_ms: number | null;
   created_at: string;
   deleted_at: string | null;
 }

@@ -7,7 +7,9 @@ export default function ChatSessionBar() {
   const { t } = useTranslation();
   const chatSessions = useLLMChatStore((s) => s.chatSessions);
   const currentChatSessionId = useLLMChatStore((s) => s.currentChatSessionId);
-  const totalTokens = useLLMChatStore((s) => s.totalTokens);
+  const totalTokens = useLLMChatStore((s) =>
+    s.chatSessions.find((cs) => cs.id === s.currentChatSessionId)?.total_tokens || 0
+  );
   const setPanelExpanded = useLLMChatStore((s) => s.setPanelExpanded);
   const selectChatSession = useLLMChatStore((s) => s.selectChatSession);
   const createChatSession = useLLMChatStore((s) => s.createChatSession);

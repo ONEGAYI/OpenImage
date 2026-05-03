@@ -128,6 +128,8 @@
     "visionSupport": "Vision Support",
     "systemPrompt": "System Prompt",
     "systemPromptPlaceholder": "You are a professional image prompt assistant…",
-    "settingsTitle": "LLM AI Assistant Settings"
+    "settingsTitle": "LLM AI Assistant Settings",
+    "thinking": "Thinking...",
+    "thoughtFor": "Thought for {{seconds}}s"
   }
 }

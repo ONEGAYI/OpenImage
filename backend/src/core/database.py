@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS llm_messages (
     ai_block TEXT,
     token_count INTEGER NOT NULL DEFAULT 0,
     attachments TEXT,
+    thinking_content TEXT,
+    thinking_duration_ms INTEGER,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     deleted_at TEXT
 );
@@ -71,7 +73,17 @@ class Database:
         self._db = await aiosqlite.connect(self._db_path)
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(_SCHEMA)
+        await self._migrate_thinking_columns()
         await self._db.commit()
+
+    async def _migrate_thinking_columns(self) -> None:
+        """为已有数据库添加 thinking_content / thinking_duration_ms 列"""
+        cursor = await self._db.execute("PRAGMA table_info(llm_messages)")
+        columns = {row[1] for row in await cursor.fetchall()}
+        if "thinking_content" not in columns:
+            await self._db.execute("ALTER TABLE llm_messages ADD COLUMN thinking_content TEXT")
+        if "thinking_duration_ms" not in columns:
+            await self._db.execute("ALTER TABLE llm_messages ADD COLUMN thinking_duration_ms INTEGER")
 
     async def close(self) -> None:
         if self._db:

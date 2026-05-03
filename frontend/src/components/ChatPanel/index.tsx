@@ -11,6 +11,7 @@ export default function ChatPanel() {
   const setPanelExpanded = useLLMChatStore((s) => s.setPanelExpanded);
   const messages = useLLMChatStore((s) => s.messages);
   const streamingText = useLLMChatStore((s) => s.streamingText);
+  const streamingThinking = useLLMChatStore((s) => s.streamingThinking);
   const bufferingState = useLLMChatStore((s) => s.bufferingState);
   const currentAiBlock = useLLMChatStore((s) => s.currentAiBlock);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,11 +51,15 @@ export default function ChatPanel() {
   return (
     <div
       style={{
+        position: "absolute",
+        bottom: "calc(100% + 8px)",
+        left: 0,
+        right: 0,
+        height: "45vh",
         display: "flex",
         flexDirection: "column",
-        height: "50%",
-        minHeight: 200,
         borderBottom: "1px solid var(--border)",
+        zIndex: 10,
         background: "var(--bg)",
       }}
     >
@@ -78,6 +83,7 @@ export default function ChatPanel() {
               message={msg}
               streamingText={isLastAssistant && streamingText ? streamingText : undefined}
               currentAiBlock={isLastAssistant ? currentAiBlock : null}
+              streamingThinking={isLastAssistant ? streamingThinking : undefined}
             />
           );
         })}
