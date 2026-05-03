@@ -35,6 +35,29 @@ CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS llm_chat_sessions (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    total_tokens INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS llm_messages (
+    id TEXT PRIMARY KEY,
+    chat_session_id TEXT NOT NULL REFERENCES llm_chat_sessions(id) ON DELETE CASCADE,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    ai_block TEXT,
+    token_count INTEGER NOT NULL DEFAULT 0,
+    attachments TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    deleted_at TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_llm_messages_session ON llm_messages(chat_session_id);
 """
 
 
