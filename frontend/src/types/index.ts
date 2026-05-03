@@ -165,8 +165,14 @@ export interface SuggestionItem {
   recommended?: boolean;
 }
 
+export interface ChatContext {
+  aspect_ratio?: string;
+  size_label?: string;
+}
+
 export interface LLMChatRequest {
   content: string;
   attachments?: Array<{ data: string; media_type: string }>;
   form_response?: Record<string, string>;
+  context?: ChatContext;
 }
