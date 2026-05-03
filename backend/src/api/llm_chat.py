@@ -55,6 +55,12 @@ class ChatRequest(BaseModel):
     context: ChatContext | None = None
 
 
+class InterruptedMessage(BaseModel):
+    content: str
+    thinking_content: str | None = None
+    thinking_duration_ms: int | None = None
+
+
 # ── 聊天会话 CRUD ──
 
 
@@ -247,6 +253,50 @@ async def undo_delete_message(message_id: str, request: Request):
     )
     await conn.commit()
     return {"ok": True}
+
+
+@router.post("/llm-chats/{chat_id}/messages/interrupted")
+async def save_interrupted_message(chat_id: str, request: Request, body: InterruptedMessage):
+    """保存中断生成后的部分消息。"""
+    db = _db(request)
+    conn = db.connection()
+
+    cursor = await conn.execute("SELECT id FROM llm_chat_sessions WHERE id = ?", (chat_id,))
+    if not await cursor.fetchone():
+        raise HTTPException(404, "Chat session not found")
+
+    msg_id = _gen_id("lm")
+    content = body.content + "<!-- interrupted -->"
+    token_count = estimate_message_tokens("assistant", content, body.thinking_content)
+
+    now = datetime.now(UTC).isoformat()
+    await conn.execute(
+        "INSERT INTO llm_messages "
+        "(id, chat_session_id, role, content, ai_block, token_count, thinking_content, thinking_duration_ms, created_at) "
+        "VALUES (?, ?, 'assistant', ?, NULL, ?, ?, ?, ?)",
+        (msg_id, chat_id, content, token_count,
+         body.thinking_content, body.thinking_duration_ms, now),
+    )
+
+    await conn.execute(
+        "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
+        (token_count, now, chat_id),
+    )
+    await conn.commit()
+
+    return {
+        "id": msg_id,
+        "chat_session_id": chat_id,
+        "role": "assistant",
+        "content": content,
+        "ai_block": None,
+        "token_count": token_count,
+        "attachments": None,
+        "thinking_content": body.thinking_content,
+        "thinking_duration_ms": body.thinking_duration_ms,
+        "created_at": now,
+        "deleted_at": None,
+    }
 
 
 # ── SSE 聊天 ──
