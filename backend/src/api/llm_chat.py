@@ -266,6 +266,41 @@ async def undo_delete_message(message_id: str, request: Request):
     return {"ok": True}
 
 
+@router.delete("/llm-chats/{chat_id}/messages/last")
+async def delete_last_message(chat_id: str, request: Request):
+    """删除指定会话的最后一条未删除消息，更新 token 统计。"""
+    db = _db(request)
+    conn = db.connection()
+
+    # 查询最后一条未删除消息
+    cursor = await conn.execute(
+        "SELECT id, token_count FROM llm_messages "
+        "WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+        (chat_id,),
+    )
+    last_msg = await cursor.fetchone()
+    if not last_msg:
+        raise HTTPException(404, "没有可删除的消息")
+
+    # 软删除
+    now = datetime.now(UTC).isoformat()
+    await conn.execute(
+        "UPDATE llm_messages SET deleted_at = ? WHERE id = ?",
+        (now, last_msg[0]),
+    )
+
+    # 查询新的最后一条未删除消息 → total_tokens
+    total_tokens = await _get_prev_cumulative_tokens(conn, chat_id)
+
+    await conn.execute(
+        "UPDATE llm_chat_sessions SET total_tokens = ?, updated_at = ? WHERE id = ?",
+        (total_tokens, now, chat_id),
+    )
+    await conn.commit()
+
+    return {"ok": True, "deleted_message_id": last_msg[0], "total_tokens": total_tokens}
+
+
 @router.post("/llm-chats/{chat_id}/messages/interrupted")
 async def save_interrupted_message(chat_id: str, request: Request, body: InterruptedMessage):
     """保存中断生成后的部分消息。"""
