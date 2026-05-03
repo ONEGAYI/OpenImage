@@ -117,6 +117,15 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     return () => window.removeEventListener("llm:edit-prompt", handler);
   }, []);
 
+  useEffect(() => {
+    if (activeSessionId) {
+      useLLMChatStore.getState().loadChatSessions(activeSessionId);
+    } else {
+      // 无活跃会话时清空 LLM 状态
+      useLLMChatStore.setState({ chatSessions: [], currentChatSessionId: null, messages: [] });
+    }
+  }, [activeSessionId]);
+
   return (
     <div
       className="border-t flex flex-col gap-2 relative"

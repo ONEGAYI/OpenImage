@@ -60,8 +60,9 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
 
   loadChatSessions: async (sessionId: string) => {
     const sessions = await api.listLLMChatSessions(sessionId);
-    set({ chatSessions: sessions });
-    if (sessions.length > 0 && !get().currentChatSessionId) {
+    // 切换图片会话时重置 LLM 聊天状态
+    set({ chatSessions: sessions, currentChatSessionId: null, messages: [] });
+    if (sessions.length > 0) {
       get().selectChatSession(sessions[0].id);
     }
   },
@@ -171,32 +172,45 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
         },
         onCompleted: (data) => {
           if (!data.message_id) return;
-          const aiMsg: LLMMessage = {
-            id: data.message_id,
-            chat_session_id: currentChatSessionId,
-            role: "assistant",
-            content: get().streamingText,
-            ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
-            token_count: data.token_count,
-            attachments: null,
-            thinking_content: data.thinking_content || get().streamingThinking || null,
-            thinking_duration_ms: data.thinking_duration_ms ?? null,
-            created_at: new Date().toISOString(),
-            deleted_at: null,
-          };
           const sessionName = data.session_name;
-          set((s) => ({
-            messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
-            streamingText: "",
-            streamingThinking: "",
-            bufferingState: "idle",
-            currentAiBlock: null,
-            abortController: null,
-            ...(sessionName
-              ? { chatSessions: s.chatSessions.map((cs) =>
-                  cs.id === currentChatSessionId ? { ...cs, name: sessionName } : cs) }
-              : {}),
-          }));
+          // 从后端重新加载消息，确保用户消息和 AI 消息都有正确的后端 ID
+          api.listLLMMessages(currentChatSessionId).then((freshMessages) => {
+            set((s) => ({
+              messages: freshMessages,
+              streamingText: "",
+              streamingThinking: "",
+              bufferingState: "idle",
+              currentAiBlock: null,
+              abortController: null,
+              ...(sessionName
+                ? { chatSessions: s.chatSessions.map((cs) =>
+                    cs.id === currentChatSessionId ? { ...cs, name: sessionName } : cs) }
+                : {}),
+            }));
+          }).catch(() => {
+            // 加载失败时回退到本地构建的消息
+            const aiMsg: LLMMessage = {
+              id: data.message_id,
+              chat_session_id: currentChatSessionId,
+              role: "assistant",
+              content: get().streamingText,
+              ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
+              token_count: data.token_count,
+              attachments: null,
+              thinking_content: data.thinking_content || get().streamingThinking || null,
+              thinking_duration_ms: data.thinking_duration_ms ?? null,
+              created_at: new Date().toISOString(),
+              deleted_at: null,
+            };
+            set((s) => ({
+              messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
+              streamingText: "",
+              streamingThinking: "",
+              bufferingState: "idle",
+              currentAiBlock: null,
+              abortController: null,
+            }));
+          });
         },
         onError: (data) => {
           const errMsg: LLMMessage = {
