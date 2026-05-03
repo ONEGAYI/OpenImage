@@ -265,9 +265,17 @@ async def save_interrupted_message(chat_id: str, request: Request, body: Interru
     if not await cursor.fetchone():
         raise HTTPException(404, "Chat session not found")
 
+    # 查询前一条消息的累计 token_count
+    cursor = await conn.execute(
+        "SELECT token_count FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+        (chat_id,),
+    )
+    prev_row = await cursor.fetchone()
+    prev_token_count = prev_row[0] if prev_row else 0
+
     msg_id = _gen_id("lm")
     content = body.content + "<!-- interrupted -->"
-    token_count = estimate_message_tokens("assistant", content, body.thinking_content)
+    token_count = prev_token_count + estimate_message_tokens("assistant", content, body.thinking_content)
 
     now = datetime.now(UTC).isoformat()
     await conn.execute(
@@ -278,8 +286,9 @@ async def save_interrupted_message(chat_id: str, request: Request, body: Interru
          body.thinking_content, body.thinking_duration_ms, now),
     )
 
+    # 直接赋值（token_count 已是累计值）
     await conn.execute(
-        "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
+        "UPDATE llm_chat_sessions SET total_tokens = ?, updated_at = ? WHERE id = ?",
         (token_count, now, chat_id),
     )
     await conn.commit()
