@@ -41,7 +41,6 @@ export default function Topbar({ onOpenSettings }: TopbarProps) {
       <div className="flex items-center gap-1.5">
         <LanguageSwitcher />
 
-        {/* Settings button */}
         <button
           onClick={onOpenSettings}
           className="flex items-center justify-center rounded-lg transition-colors"
@@ -66,7 +65,6 @@ export default function Topbar({ onOpenSettings }: TopbarProps) {
           </svg>
         </button>
 
-        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
           className="relative rounded-[14px] cursor-pointer border overflow-hidden"

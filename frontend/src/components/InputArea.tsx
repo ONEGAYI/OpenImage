@@ -171,7 +171,6 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
               style={{ width: 52, height: 52, borderRadius: "var(--radius-sm)", borderColor: "var(--border)", background: "var(--sand)" }}
             >
               <img src={att.preview_url} alt={att.name} className="w-full h-full object-cover" />
-              {/* 编辑图标（左下角） */}
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingAttachment(att); }}
                 className="absolute bottom-0.5 left-0.5 w-[20px] h-[20px] rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"

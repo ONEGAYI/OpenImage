@@ -3,6 +3,41 @@ import { LLMChatSession, LLMMessage, AiBlock } from "../types";
 import * as api from "../services/api";
 import { useGenerationStore, SIZE_MAP } from "./generationStore";
 
+function createLLMMessage(
+  overrides: Partial<LLMMessage> & Pick<LLMMessage, "id" | "role" | "content">
+): LLMMessage {
+  return {
+    chat_session_id: "",
+    ai_block: null,
+    token_count: 0,
+    attachments: null,
+    thinking_content: null,
+    thinking_duration_ms: null,
+    created_at: new Date().toISOString(),
+    deleted_at: null,
+    ...overrides,
+  };
+}
+
+const STREAM_RESET = {
+  streamingText: "",
+  streamingThinking: "",
+  bufferingState: "idle" as const,
+  currentAiBlock: null as AiBlock | null,
+  abortController: null as AbortController | null,
+};
+
+function updateChatSessionTokens(
+  sessions: LLMChatSession[],
+  chatId: string | null,
+  totalTokens: number,
+): LLMChatSession[] {
+  if (!chatId) return sessions;
+  return sessions.map((cs) =>
+    cs.id === chatId ? { ...cs, total_tokens: totalTokens } : cs,
+  );
+}
+
 interface LLMChatState {
   // 全局状态
   aiEnabled: boolean;
@@ -117,25 +152,17 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     };
 
     set({
-      streamingText: "",
-      streamingThinking: "",
+      ...STREAM_RESET,
       bufferingState: "streaming",
-      currentAiBlock: null,
     });
 
-    const tempUserMsg: LLMMessage = {
+    const tempUserMsg = createLLMMessage({
       id: `temp_${Date.now()}`,
       chat_session_id: currentChatSessionId,
       role: "user",
       content,
-      ai_block: null,
-      token_count: 0,
       attachments: attachments ? JSON.stringify(attachments) : null,
-      thinking_content: null,
-      thinking_duration_ms: null,
-      created_at: new Date().toISOString(),
-      deleted_at: null,
-    };
+    });
     set((s) => ({ messages: [...s.messages, tempUserMsg] }));
 
     const controller = api.sendLLMChat(
@@ -164,71 +191,45 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
         onUsage: (data) => {
           const total = data.prompt_tokens + data.completion_tokens;
           set((s) => ({
-            chatSessions: s.chatSessions.map((cs) =>
-              cs.id === s.currentChatSessionId
-                ? { ...cs, total_tokens: total }
-                : cs,
-            ),
+            chatSessions: updateChatSessionTokens(s.chatSessions, s.currentChatSessionId, total),
           }));
         },
         onCompleted: (data) => {
           if (!data.message_id) return;
-          const sessionName = data.session_name;
-          const updateSession = (s: LLMChatState) => ({
-            streamingText: "",
-            streamingThinking: "",
-            bufferingState: "idle" as const,
-            currentAiBlock: null as AiBlock | null,
-            abortController: null as AbortController | null,
+          const aiMsg = createLLMMessage({
+            id: data.message_id,
+            chat_session_id: currentChatSessionId,
+            role: "assistant",
+            content: get().streamingText,
+            ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
+            token_count: data.token_count,
+            thinking_content: data.thinking_content || get().streamingThinking || null,
+            thinking_duration_ms: data.thinking_duration_ms ?? null,
+          });
+          set((s) => ({
+            ...STREAM_RESET,
+            messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
             chatSessions: s.chatSessions.map((cs) =>
               cs.id === currentChatSessionId
-                ? { ...cs,
-                    ...(sessionName ? { name: sessionName } : {}),
+                ? {
+                    ...cs,
                     total_tokens: data.total_tokens ?? cs.total_tokens,
+                    ...(data.session_name ? { name: data.session_name } : {}),
                   }
                 : cs
             ),
-          });
-          api.listLLMMessages(currentChatSessionId).then((freshMessages) => {
-            set((s) => ({ ...updateSession(s), messages: freshMessages }));
-          }).catch(() => {
-            const aiMsg: LLMMessage = {
-              id: data.message_id,
-              chat_session_id: currentChatSessionId,
-              role: "assistant",
-              content: get().streamingText,
-              ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
-              token_count: data.token_count,
-              attachments: null,
-              thinking_content: data.thinking_content || get().streamingThinking || null,
-              thinking_duration_ms: data.thinking_duration_ms ?? null,
-              created_at: new Date().toISOString(),
-              deleted_at: null,
-            };
-            set((s) => ({ ...updateSession(s), messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg] }));
-          });
+          }));
         },
         onError: (data) => {
-          const errMsg: LLMMessage = {
+          const errMsg = createLLMMessage({
             id: `err_${Date.now()}`,
             chat_session_id: currentChatSessionId!,
             role: "system",
             content: `错误：${data.message}`,
-            ai_block: null,
-            token_count: 0,
-            attachments: null,
-            thinking_content: null,
-            thinking_duration_ms: null,
-            created_at: new Date().toISOString(),
-            deleted_at: null,
-          };
+          });
           set((s) => ({
             messages: [...s.messages, errMsg],
-            streamingText: "",
-            streamingThinking: "",
-            bufferingState: "idle",
-            currentAiBlock: null,
-            abortController: null,
+            ...STREAM_RESET,
           }));
         },
       },
@@ -246,12 +247,8 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     // 先中断 + 重置 UI，再异步保存
     abortController?.abort();
     set({
-      streamingText: "",
-      streamingThinking: "",
-      bufferingState: "idle",
-      currentAiBlock: null,
+      ...STREAM_RESET,
       bufferElapsed: 0,
-      abortController: null,
     });
 
     // 有内容则保存为中断消息
@@ -276,11 +273,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     const result = await api.deleteLastLLMMessage(currentChatSessionId);
     set((s) => ({
       messages: s.messages.slice(0, -1),
-      chatSessions: s.chatSessions.map((cs) =>
-        cs.id === currentChatSessionId
-          ? { ...cs, total_tokens: result.total_tokens }
-          : cs
-      ),
+      chatSessions: updateChatSessionTokens(s.chatSessions, currentChatSessionId, result.total_tokens),
     }));
   },
 }));

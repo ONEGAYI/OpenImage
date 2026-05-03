@@ -102,7 +102,6 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
         }}
       >
-        {/* 顶栏 */}
         <div
           style={{
             display: "flex",
@@ -150,7 +149,6 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           </div>
         </div>
 
-        {/* 主区域 */}
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           <ToolBar
             tool={hook.state.tool}
@@ -166,7 +164,6 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           />
         </div>
 
-        {/* 错误提示 */}
         {errorMsg && (
           <div
             style={{
@@ -182,7 +179,6 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           </div>
         )}
 
-        {/* 参考图片区域 */}
         <div style={{
           display: "flex",
           gap: 6,
@@ -233,7 +229,6 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           />
         </div>
 
-        {/* 底栏 Prompt */}
         <div
           style={{
             display: "flex",

@@ -79,7 +79,6 @@ export default function ToolBar({
 
       <div style={{ flex: 1 }} />
 
-      {/* 笔刷大小（仅笔刷和橡皮擦时显示） */}
       {tool !== "rectangle" && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
           <div
@@ -102,7 +101,6 @@ export default function ToolBar({
         </div>
       )}
 
-      {/* 缩放控制 */}
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
         <span style={{ color: "#a09d96", fontSize: 10 }}>{Math.round(zoom * 100)}%</span>
         <button

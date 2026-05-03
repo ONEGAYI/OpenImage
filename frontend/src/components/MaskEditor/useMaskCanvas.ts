@@ -35,29 +35,42 @@ export function useMaskCanvas(
     hasMask: false,
   });
 
+  // Ref 镜像：高频变值通过 ref 读取，避免 callback 依赖更新
+  const stateRef = useRef(state);
+
   const currentPathRef = useRef<Point[]>([]);
   const currentRectRef = useRef<Rect | null>(null);
   const displayScaleRef = useRef(1);
   const lastPanPointRef = useRef<Point | null>(null);
 
-  // 计算原图在 Canvas 中的显示区域（object-fit: contain）
+  const updateState = useCallback(
+    (updater: (prev: MaskCanvasState) => Partial<MaskCanvasState>) => {
+      setState((prev) => {
+        const next = { ...prev, ...updater(prev) };
+        stateRef.current = next;
+        return next;
+      });
+    },
+    [],
+  );
+
   const getImageRect = useCallback(() => {
     if (!imageElement || !canvasRef.current) return null;
     const canvas = canvasRef.current;
+    const { zoom, panOffset } = stateRef.current;
     const imgW = imageElement.naturalWidth;
     const imgH = imageElement.naturalHeight;
     const canvasW = canvas.width;
     const canvasH = canvas.height;
-    const scale = Math.min(canvasW / imgW, canvasH / imgH) * state.zoom;
+    const scale = Math.min(canvasW / imgW, canvasH / imgH) * zoom;
     displayScaleRef.current = scale;
     const drawW = imgW * scale;
     const drawH = imgH * scale;
-    const offsetX = (canvasW - drawW) / 2 + state.panOffset.x;
-    const offsetY = (canvasH - drawH) / 2 + state.panOffset.y;
+    const offsetX = (canvasW - drawW) / 2 + panOffset.x;
+    const offsetY = (canvasH - drawH) / 2 + panOffset.y;
     return { x: offsetX, y: offsetY, w: drawW, h: drawH, scale };
-  }, [imageElement, state.zoom, state.panOffset]);
+  }, [imageElement]);
 
-  // 初始化离屏 mask canvas（与原图同尺寸）
   const ensureMaskCanvas = useCallback(() => {
     if (!imageElement) return null;
     if (
@@ -73,7 +86,6 @@ export function useMaskCanvas(
     return maskCanvasRef.current;
   }, [imageElement]);
 
-  // 将 CSS 像素的 canvas 坐标转换为原图坐标
   const canvasToImage = useCallback(
     (cx: number, cy: number): Point | null => {
       const rect = getImageRect();
@@ -87,10 +99,9 @@ export function useMaskCanvas(
     [getImageRect]
   );
 
-  // 在 mask canvas 上绘制一个笔触点
   const drawMaskDot = useCallback(
     (ctx: CanvasRenderingContext2D, imgPoint: Point, erase: boolean) => {
-      const size = state.brushSize / displayScaleRef.current;
+      const size = stateRef.current.brushSize / displayScaleRef.current;
       ctx.beginPath();
       ctx.arc(imgPoint.x, imgPoint.y, size / 2, 0, Math.PI * 2);
       if (erase) {
@@ -102,21 +113,21 @@ export function useMaskCanvas(
       }
       ctx.fill();
     },
-    [state.brushSize]
+    [],
   );
 
-  // 在 mask canvas 上绘制一条线段（两个点之间插值）
   const drawMaskLine = useCallback(
     (ctx: CanvasRenderingContext2D, from: Point, to: Point, erase: boolean) => {
+      const size = stateRef.current.brushSize / displayScaleRef.current;
       const dist = Math.hypot(to.x - from.x, to.y - from.y);
-      const step = Math.max(1, state.brushSize / displayScaleRef.current / 4);
+      const step = Math.max(1, size / 4);
       const steps = Math.max(1, Math.ceil(dist / step));
       for (let i = 0; i <= steps; i++) {
         const t = i / steps;
         drawMaskDot(ctx, { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t }, erase);
       }
     },
-    [drawMaskDot, state.brushSize]
+    [drawMaskDot],
   );
 
   const renderOverlay = useCallback(() => {
@@ -140,7 +151,6 @@ export function useMaskCanvas(
       ctx.restore();
     }
 
-    // 绘制矩形预览
     if (currentRectRef.current) {
       const r = currentRectRef.current;
       const sx = r.start.x * rect.scale + rect.x;
@@ -152,12 +162,11 @@ export function useMaskCanvas(
         Math.min(sx, ex),
         Math.min(sy, ey),
         Math.abs(ex - sx),
-        Math.abs(ey - sy)
+        Math.abs(ey - sy),
       );
     }
-  }, [canvasRef, imageElement, getImageRect]);
+  }, [imageElement, getImageRect]);
 
-  // 鼠标事件处理
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!imageElement) return;
@@ -167,7 +176,6 @@ export function useMaskCanvas(
       const cx = e.clientX - bounds.left;
       const cy = e.clientY - bounds.top;
 
-      // 中键拖拽平移
       if (e.button === 1) {
         lastPanPointRef.current = { x: e.clientX, y: e.clientY };
         return;
@@ -181,36 +189,36 @@ export function useMaskCanvas(
       const ctx = maskC.getContext("2d");
       if (!ctx) return;
 
-      setState((s) => ({ ...s, isDrawing: true }));
+      const { tool } = stateRef.current;
+      updateState(() => ({ isDrawing: true }));
 
-      if (state.tool === "rectangle") {
+      if (tool === "rectangle") {
         currentRectRef.current = { start: imgPoint, end: imgPoint };
       } else {
-        const erase = state.tool === "eraser";
+        const erase = tool === "eraser";
         drawMaskDot(ctx, imgPoint, erase);
         currentPathRef.current = [imgPoint];
-        setState((s) => ({ ...s, hasMask: true }));
+        updateState(() => ({ hasMask: true }));
       }
       renderOverlay();
     },
-    [canvasRef, imageElement, state.tool, canvasToImage, ensureMaskCanvas, drawMaskDot, renderOverlay]
+    [imageElement, canvasToImage, ensureMaskCanvas, drawMaskDot, renderOverlay, updateState],
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      // 平移
       if (lastPanPointRef.current) {
         const dx = e.clientX - lastPanPointRef.current.x;
         const dy = e.clientY - lastPanPointRef.current.y;
         lastPanPointRef.current = { x: e.clientX, y: e.clientY };
-        setState((s) => ({
-          ...s,
+        updateState((s) => ({
           panOffset: { x: s.panOffset.x + dx, y: s.panOffset.y + dy },
         }));
         return;
       }
 
-      if (!state.isDrawing || !imageElement) return;
+      const { isDrawing, tool } = stateRef.current;
+      if (!isDrawing || !imageElement) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
       const bounds = canvas.getBoundingClientRect();
@@ -219,7 +227,7 @@ export function useMaskCanvas(
       const imgPoint = canvasToImage(cx, cy);
       if (!imgPoint) return;
 
-      if (state.tool === "rectangle") {
+      if (tool === "rectangle") {
         currentRectRef.current = { ...currentRectRef.current!, end: imgPoint };
       } else {
         const maskC = ensureMaskCanvas();
@@ -228,14 +236,14 @@ export function useMaskCanvas(
         if (!ctx) return;
         const last = currentPathRef.current[currentPathRef.current.length - 1];
         if (last) {
-          const erase = state.tool === "eraser";
+          const erase = tool === "eraser";
           drawMaskLine(ctx, last, imgPoint, erase);
         }
         currentPathRef.current.push(imgPoint);
       }
       renderOverlay();
     },
-    [state.isDrawing, state.tool, imageElement, canvasRef, canvasToImage, ensureMaskCanvas, drawMaskLine, renderOverlay]
+    [imageElement, canvasToImage, ensureMaskCanvas, drawMaskLine, renderOverlay, updateState],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -244,7 +252,8 @@ export function useMaskCanvas(
       return;
     }
 
-    if (state.tool === "rectangle" && currentRectRef.current) {
+    const { tool } = stateRef.current;
+    if (tool === "rectangle" && currentRectRef.current) {
       const maskC = ensureMaskCanvas();
       if (maskC) {
         const ctx = maskC.getContext("2d");
@@ -257,38 +266,36 @@ export function useMaskCanvas(
           const w = Math.abs(r.end.x - r.start.x);
           const h = Math.abs(r.end.y - r.start.y);
           ctx.fillRect(x, y, w, h);
-          setState((s) => ({ ...s, hasMask: true }));
+          updateState(() => ({ hasMask: true }));
         }
       }
       currentRectRef.current = null;
     }
 
-    setState((s) => ({ ...s, isDrawing: false }));
+    updateState(() => ({ isDrawing: false }));
     renderOverlay();
-  }, [state.tool, ensureMaskCanvas, renderOverlay]);
+  }, [ensureMaskCanvas, renderOverlay, updateState]);
 
-  // 滚轮缩放
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
-      setState((s) => ({
-        ...s,
+      updateState((s) => ({
         zoom: Math.max(0.25, Math.min(5, s.zoom * delta)),
       }));
     },
-    []
+    [updateState],
   );
 
-  // 导出蒙版为透明 PNG base64（有绘制内容 → 白色不透明，未绘制 → 透明）
   const exportMask = useCallback((): string | null => {
     const maskC = maskCanvasRef.current;
-    if (!maskC || !state.hasMask) return null;
+    if (!maskC || !stateRef.current.hasMask) return null;
 
     const output = document.createElement("canvas");
     output.width = maskC.width;
     output.height = maskC.height;
-    const ctx = output.getContext("2d")!;
+    const ctx = output.getContext("2d");
+    if (!ctx) return null;
 
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, output.width, output.height);
@@ -297,9 +304,8 @@ export function useMaskCanvas(
 
     const dataUrl = output.toDataURL("image/png");
     return dataUrl.split(",")[1];
-  }, [state.hasMask]);
+  }, []);
 
-  // 重置蒙版
   const clearMask = useCallback(() => {
     const maskC = ensureMaskCanvas();
     if (maskC) {
@@ -307,20 +313,19 @@ export function useMaskCanvas(
       if (ctx) ctx.clearRect(0, 0, maskC.width, maskC.height);
     }
     currentRectRef.current = null;
-    setState((s) => ({ ...s, hasMask: false }));
+    updateState(() => ({ hasMask: false }));
     renderOverlay();
-  }, [ensureMaskCanvas, renderOverlay]);
+  }, [ensureMaskCanvas, renderOverlay, updateState]);
 
-  // zoom/pan 变化时重新渲染
   useEffect(() => {
     renderOverlay();
   }, [state.zoom, state.panOffset, renderOverlay]);
 
   return {
     state,
-    setTool: (tool: Tool) => setState((s) => ({ ...s, tool })),
-    setBrushSize: (size: number) => setState((s) => ({ ...s, brushSize: size })),
-    resetZoom: () => setState((s) => ({ ...s, zoom: 1, panOffset: { x: 0, y: 0 } })),
+    setTool: (tool: Tool) => updateState(() => ({ tool })),
+    setBrushSize: (size: number) => updateState(() => ({ brushSize: size })),
+    resetZoom: () => updateState(() => ({ zoom: 1, panOffset: { x: 0, y: 0 } })),
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,

@@ -82,7 +82,6 @@ export default function Sidebar() {
         transition: "background 0.3s, border-color 0.3s",
       }}
     >
-      {/* Header */}
       <div className="py-5 px-4 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
         <div className="mb-3.5" style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, color: "var(--fg)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
           Open<span style={{ color: "var(--accent)" }}>Image</span>
@@ -96,7 +95,6 @@ export default function Sidebar() {
         >{t("sidebar.newSession")}</button>
       </div>
 
-      {/* Search */}
       <div className="px-4 py-2.5 border-b" style={{ borderColor: "var(--border-s)" }}>
         <input
           type="text" placeholder={t("sidebar.searchPlaceholder")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
@@ -107,7 +105,6 @@ export default function Sidebar() {
         />
       </div>
 
-      {/* Session list */}
       <div className="flex-1 overflow-y-auto py-1.5 px-2">
         {filtered.length === 0 && (
           <div className="py-8 px-4 text-center text-[13px] leading-relaxed" style={{ color: "var(--faint)" }}>
@@ -162,7 +159,6 @@ export default function Sidebar() {
         ))}
       </div>
 
-      {/* Context menu */}
       {contextMenu && (
         <div
           className="fixed z-50 p-1 min-w-[140px]"

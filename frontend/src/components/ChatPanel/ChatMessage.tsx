@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AiBlock, LLMMessage } from "../../types";
 import AiBlockRenderer from "./AiBlockRenderer";
@@ -41,10 +41,10 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
   }
 
   const isStreaming = streamingText !== undefined;
-  const aiBlock =
-    isStreaming && currentAiBlock
-      ? currentAiBlock
-      : (() => { try { return message.ai_block ? JSON.parse(message.ai_block) : null; } catch { return null; } })();
+  const aiBlock = useMemo(() => {
+    if (isStreaming && currentAiBlock) return currentAiBlock;
+    try { return message.ai_block ? JSON.parse(message.ai_block) : null; } catch { return null; }
+  }, [isStreaming, currentAiBlock, message.ai_block]);
 
   const thinkingContent = isStreaming ? streamingThinking : message.thinking_content;
   const thinkingDuration = isStreaming ? null : message.thinking_duration_ms;

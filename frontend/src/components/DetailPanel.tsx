@@ -94,7 +94,6 @@ export default function DetailPanel() {
   return (
     <div className="flex flex-col h-full overflow-y-auto border-l" style={{ width: "var(--detail-w)", minWidth: "var(--detail-w)", maxWidth: "var(--detail-w)", background: "var(--surface)", borderColor: "var(--border)", boxSizing: "border-box", transition: "background 0.3s, border-color 0.3s" }}>
 
-      {/* Preview */}
       <div className="border-b overflow-hidden" style={{ padding: 16, borderColor: "var(--border-s)" }}>
         {isSingle ? (
           <img src={getImageFileUrl(singleImage!.id)} alt={t("gallery.step", { step: singleImage!.step })} className="w-full" style={{ borderRadius: "var(--radius-md)", background: "var(--sand)", display: "block" }} />
@@ -103,7 +102,6 @@ export default function DetailPanel() {
         )}
       </div>
 
-      {/* Info */}
       <div className="p-4 flex flex-col gap-3.5 flex-1">
         {isSingle ? (
           <>
@@ -138,7 +136,6 @@ export default function DetailPanel() {
         )}
       </div>
 
-      {/* Actions — 翻页式 */}
       <div
         className="border-t flex flex-col gap-2 mt-auto"
         style={{ padding: 16, borderColor: "var(--border-s)", boxSizing: "border-box" }}
@@ -154,7 +151,6 @@ export default function DetailPanel() {
               transform: `translateX(-${buttonPage * 100}%)`,
             }}
           >
-            {/* 第一页 */}
             <div style={{ minWidth: "100%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               {isSingle ? (
                 <>
@@ -190,7 +186,6 @@ export default function DetailPanel() {
               )}
             </div>
 
-            {/* 第二页 */}
             <div style={{ minWidth: "100%", flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               {isSingle ? (
                 <>
@@ -228,7 +223,6 @@ export default function DetailPanel() {
           </div>
         </div>
 
-        {/* 页码指示器 */}
         <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
           {[0, 1].map((p) => (
             <button
@@ -248,7 +242,6 @@ export default function DetailPanel() {
         </div>
       </div>
 
-      {/* MaskEditor Overlay */}
       {editingMask && activeSessionId && (
         <MaskEditor
           source={editingMask}
@@ -274,7 +267,6 @@ export default function DetailPanel() {
         />
       )}
 
-      {/* Full-resolution viewer overlay */}
       {viewingImage && (
         <div
           className="fixed inset-0 flex items-center justify-center"

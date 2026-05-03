@@ -47,6 +47,12 @@ const defaultGen: SessionGenState = {
   abortController: null,
 };
 
+const GEN_RESET: Partial<SessionGenState> = {
+  isGenerating: false,
+  partialImage: null,
+  abortController: null,
+};
+
 function updateSessionGen(
   state: GenerationState,
   sessionId: string,
@@ -103,11 +109,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       },
       (_data: GenerateCompleted) => {
         set((state) => ({
-          sessionGenerations: updateSessionGen(state, sessionId, {
-            isGenerating: false,
-            partialImage: null,
-            abortController: null,
-          }),
+          sessionGenerations: updateSessionGen(state, sessionId, GEN_RESET),
         }));
         onSuccess?.();
         import("./sessionStore").then(({ useSessionStore }) => {
@@ -117,11 +119,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       },
       (code, message) => {
         set((state) => ({
-          sessionGenerations: updateSessionGen(state, sessionId, {
-            isGenerating: false,
-            partialImage: null,
-            abortController: null,
-          }),
+          sessionGenerations: updateSessionGen(state, sessionId, GEN_RESET),
           error: `${code}: ${message}`,
         }));
       }
@@ -141,11 +139,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
     const gen = get().sessionGenerations[sessionId];
     gen?.abortController?.abort();
     set((state) => ({
-      sessionGenerations: updateSessionGen(state, sessionId, {
-        isGenerating: false,
-        partialImage: null,
-        abortController: null,
-      }),
+      sessionGenerations: updateSessionGen(state, sessionId, GEN_RESET),
     }));
   },
 

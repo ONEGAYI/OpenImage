@@ -42,6 +42,11 @@ function getBaseUrl(): string {
 
 // --- HTTP helpers ---
 
+async function parseHttpError(res: Response): Promise<string> {
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  return err.detail || res.statusText;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${getBaseUrl()}${path}`, {
     ...options,
@@ -51,8 +56,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     },
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    throw new Error(await parseHttpError(res));
   }
   return res.json();
 }
@@ -142,8 +146,7 @@ function connectSSE(url: string, body: unknown, handler: SSEEventHandler): Abort
   })
     .then(async (res) => {
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        handler("error", { code: String(res.status), message: err.detail || res.statusText });
+        handler("error", { code: String(res.status), message: await parseHttpError(res) });
         return;
       }
       const reader = res.body?.getReader();
@@ -185,6 +188,12 @@ function connectSSE(url: string, body: unknown, handler: SSEEventHandler): Abort
 
 // --- Generate (SSE) ---
 
+type SSEError = { code: string; message: string };
+
+function extractSSEError(data: unknown): SSEError {
+  return data as SSEError;
+}
+
 export function generateImage(
   req: GenerateRequest,
   onPartial: (index: number, b64: string) => void,
@@ -192,10 +201,14 @@ export function generateImage(
   onError: (code: string, message: string) => void
 ): AbortController {
   return connectSSE(`${getBaseUrl()}/api/generate`, req, (event, data) => {
-    if (event === "partial_image") onPartial((data as { index: number; b64_json: string }).index, (data as { index: number; b64_json: string }).b64_json);
-    else if (event === "completed") onCompleted(data as GenerateCompleted);
-    else if (event === "error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
-    else if (event === "network_error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
+    if (event === "partial_image") {
+      const d = data as { index: number; b64_json: string };
+      onPartial(d.index, d.b64_json);
+    } else if (event === "completed") onCompleted(data as GenerateCompleted);
+    else if (event === "error" || event === "network_error") {
+      const err = extractSSEError(data);
+      onError(err.code, err.message);
+    }
   });
 }
 
@@ -208,7 +221,10 @@ export function inpaintImage(
 ): AbortController {
   return connectSSE(`${getBaseUrl()}/api/inpaint`, req, (event, data) => {
     if (event === "completed") onCompleted(data as InpaintCompleted);
-    else if (event === "error" || event === "network_error") onError((data as { code: string; message: string }).code, (data as { code: string; message: string }).message);
+    else if (event === "error" || event === "network_error") {
+      const err = extractSSEError(data);
+      onError(err.code, err.message);
+    }
   });
 }
 

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { AiBlock, AiBlockQuestions, AiBlockSuggestions } from "../../types";
 import QuestionForm from "./QuestionForm";
 import SuggestionCards from "./SuggestionCards";
@@ -55,7 +56,7 @@ function normalizeBlock(raw: unknown): AiBlock {
 
 export default function AiBlockRenderer({ block }: Props) {
   const { t } = useTranslation();
-  const norm = normalizeBlock(block);
+  const norm = useMemo(() => normalizeBlock(block), [block]);
   if (norm.type === "questions") {
     return <QuestionForm block={norm as AiBlockQuestions} />;
   }

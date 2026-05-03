@@ -254,7 +254,6 @@ export default function ChatSessionBar() {
             zIndex: 50,
           }}
         >
-          {/* 工具栏 */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", borderBottom: "1px solid var(--border-s)", marginBottom: 2 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "var(--muted)", cursor: "pointer" }}>
               <input

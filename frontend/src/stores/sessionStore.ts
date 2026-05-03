@@ -36,11 +36,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   selectSession: async (id: string) => {
+    if (get().loading) return;
     set({ loading: true, activeSessionId: id, selectedImageIds: [] });
     try {
       const images = await api.getSessionImages(id);
-      set({ images });
-    } finally {
+      set({ images, loading: false });
+    } catch {
       set({ loading: false });
     }
   },

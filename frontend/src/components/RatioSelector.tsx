@@ -98,7 +98,6 @@ export default function RatioSelector() {
 
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
-      {/* 触发按钮 */}
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -127,7 +126,6 @@ export default function RatioSelector() {
         {aspectRatio} · {imageSize}
       </button>
 
-      {/* Popover */}
       {open && (
         <div
           style={{
@@ -144,7 +142,6 @@ export default function RatioSelector() {
             zIndex: 50,
           }}
         >
-          {/* 居中小三角 */}
           <div
             style={{
               position: "absolute",
@@ -160,7 +157,6 @@ export default function RatioSelector() {
             }}
           />
 
-          {/* 比例区 */}
           <div style={{ marginBottom: 12 }}>
             <div style={sectionLabelStyle}>{t("ratio.ratio")}</div>
             <div style={{ display: "flex", gap: 6 }}>
@@ -184,7 +180,6 @@ export default function RatioSelector() {
             </div>
           </div>
 
-          {/* 分割线 */}
           <div
             style={{
               height: 1,
@@ -193,7 +188,6 @@ export default function RatioSelector() {
             }}
           />
 
-          {/* 尺寸区 */}
           <div>
             <div style={sectionLabelStyle}>{t("ratio.size")}</div>
             <div style={{ display: "flex", gap: 6 }}>

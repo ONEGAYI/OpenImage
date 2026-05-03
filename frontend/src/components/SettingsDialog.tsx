@@ -144,7 +144,6 @@ export default function SettingsDialog({ onClose }: { onClose: () => void }) {
         />
         <div className="text-xs mb-4" style={{ color: "var(--faint)" }}>{t("settings.modelNameHint")}</div>
 
-        {/* 分隔线 */}
         <div style={{ borderTop: "1px solid var(--border-s)", margin: "12px 0" }} />
 
         {/* LLM AI 助手设置 */}
