@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { LLMChatSession, LLMMessage, AiBlock } from "../types";
 import * as api from "../services/api";
+import { useGenerationStore, SIZE_MAP } from "./generationStore";
 
 interface LLMChatState {
   // 全局状态
@@ -109,6 +110,13 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     const { currentChatSessionId } = get();
     if (!currentChatSessionId) return;
 
+    // 从 generationStore 读取当前生成偏好
+    const gen = useGenerationStore.getState();
+    const context = {
+      aspect_ratio: gen.aspectRatio,
+      size_label: SIZE_MAP[gen.aspectRatio]?.[gen.imageSize] || undefined,
+    };
+
     set({
       streamingText: "",
       bufferingState: "streaming",
@@ -130,7 +138,7 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
 
     const controller = api.sendLLMChat(
       currentChatSessionId,
-      { content, attachments, form_response: formResponse },
+      { content, attachments, form_response: formResponse, context },
       {
         onToken: (text) => {
           set((s) => ({ streamingText: s.streamingText + text }));
