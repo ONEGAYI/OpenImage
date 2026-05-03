@@ -1,3 +1,4 @@
+"""4 层系统提示词组装器 — 身份 / 技能 / 上下文 / 历史。"""
 from src.core.skills.registry import get_default_skill_id, load_skill_content
 
 
@@ -78,8 +79,9 @@ def _render_context_layer(
         lines = ["## 当前会话", f"本会话已生成 {len(session_images)} 张图片。"]
         recent = session_images[-3:]
         for img in recent:
-            prompt_preview = img.get("prompt", "")[:80]
-            lines.append(f"- 「{prompt_preview}...」")
+            prompt = img.get("prompt", "")
+            prompt_preview = prompt[:77] + "..." if len(prompt) > 80 else prompt
+            lines.append(f"- 「{prompt_preview}」")
         lines.append("用户可能基于这些结果要求调整或迭代。")
         parts.append("\n".join(lines))
 
