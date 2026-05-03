@@ -19,19 +19,30 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
   return (
     <div
       style={{
-        marginTop: 6,
         border: "1px solid rgba(201,100,66,0.3)",
         borderRadius: "var(--radius-sm)",
-        overflow: "hidden",
         background: "var(--card-bg)",
+        overflow: "clip",
       }}
     >
       <div
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => !isStreaming && setExpanded(!expanded)}
         style={{
           padding: "5px 10px",
-          background: "rgba(201,100,66,0.06)",
-          borderBottom: expanded ? "1px solid rgba(201,100,66,0.15)" : "none",
+          ...(expanded
+            ? {
+                backgroundColor: "var(--card-bg)",
+                backgroundImage: "linear-gradient(rgba(201,100,66,0.06), rgba(201,100,66,0.06))",
+                borderBottom: "1.5px solid rgba(201,100,66,0.25)",
+                borderRadius: "7px 7px 0 0",
+                position: "sticky" as const,
+                top: 0,
+                zIndex: 1,
+              }
+            : {
+                background: "rgba(201,100,66,0.06)",
+                borderRadius: "var(--radius-sm)",
+              }),
           fontSize: 11,
           fontWeight: 500,
           color: "var(--accent)",
@@ -63,8 +74,6 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
             fontSize: 11,
             color: "var(--muted)",
             lineHeight: 1.6,
-            maxHeight: 200,
-            overflowY: "auto",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             fontFamily: "monospace",

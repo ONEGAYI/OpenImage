@@ -136,6 +136,7 @@
     "systemPromptPlaceholder": "你是一个专业的图片提示词助手…",
     "settingsTitle": "LLM AI 助手设置",
     "thinking": "正在思考...",
-    "thoughtFor": "已思考 {{seconds}} 秒"
+    "thoughtFor": "已思考 {{seconds}} 秒",
+    "scrollToLatest": "转到最新"
   }
 }

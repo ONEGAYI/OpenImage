@@ -40,9 +40,12 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
   const thinkingContent = isStreaming ? streamingThinking : message.thinking_content;
   const thinkingDuration = isStreaming ? null : message.thinking_duration_ms;
 
+  const bodyText = isStreaming ? streamingText : message.content;
+  const showBody = isUser || !!(bodyText || "").trim();
+
   return (
     <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-      <div style={{ maxWidth: "85%" }}>
+      <div style={{ maxWidth: "85%", display: "flex", flexDirection: "column", gap: 6 }}>
         {thinkingContent && (
           <ThinkingCard
             content={thinkingContent}
@@ -50,22 +53,24 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
             streaming={isStreaming}
           />
         )}
-        <div
-          style={{
-            padding: "6px 10px",
-            borderRadius: isUser ? "10px 10px 2px 10px" : "2px 10px 10px 10px",
-            background: isUser ? "var(--accent)" : "var(--card-bg)",
-            color: isUser ? "#fff" : "var(--fg)",
-            border: isUser ? "none" : "1px solid var(--border)",
-            lineHeight: 1.5,
-            fontSize: 13,
-          }}
-        >
-          {isStreaming ? streamingText || "..." : message.content}
-          {isStreaming && streamingText && (
-            <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
-          )}
-        </div>
+        {showBody && (
+          <div
+            style={{
+              padding: "6px 10px",
+              borderRadius: isUser ? "10px 10px 2px 10px" : "2px 10px 10px 10px",
+              background: isUser ? "var(--accent)" : "var(--card-bg)",
+              color: isUser ? "#fff" : "var(--fg)",
+              border: isUser ? "none" : "1px solid var(--border)",
+              lineHeight: 1.5,
+              fontSize: 13,
+            }}
+          >
+            {bodyText}
+            {isStreaming && (
+              <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
+            )}
+          </div>
+        )}
         {aiBlock && <AiBlockRenderer block={aiBlock} />}
       </div>
     </div>
