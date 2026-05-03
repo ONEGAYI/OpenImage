@@ -5,6 +5,38 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-05-03
+
+### 新功能
+
+- **LLM AI 助手集成**：完整的内嵌式 AI 聊天助手，帮助用户优化提示词、提供图片生成建议。独立于图片生成系统，共享同一后端进程
+  - 后端：LLM 客户端（OpenAI 兼容协议，SSE 流式）、Token 近似估算（中英文混合计算）、4 层系统提示词组装器（身份→技能→上下文→摘要）、技能系统（Markdown 文件 + `@lru_cache` 缓存注册）
+  - API 路由：LLM 设置 CRUD（`/api/llm/settings`）、聊天会话 CRUD、消息 CRUD（含软删除）、SSE 流式聊天端点
+  - 数据库：新增 `llm_chat_sessions` 和 `llm_messages` 两张表
+  - 前端 ChatPanel（8 个子组件）：面板容器、消息气泡（含 AiBlock 渲染）、会话切换栏、输入框、建议卡片、等待指示器、AI 结构化内容块渲染、思考链卡片
+  - AI 开关按钮（AiToggle）集成到输入框内部右端
+  - 发送消息时携带生成偏好上下文（比例/尺寸），供系统提示词动态注入
+
+- **思考链（reasoning_content）支持**：AI 回复中展示推理过程，ThinkingCard 组件支持吸顶标题、折叠/展开交互、overflow:clip 适配
+
+- **ai_block XML 标签格式**：结构化内容块从 JSON 格式改为 XML 标签解析，聊天会话支持自动命名
+
+### Bug 修复
+
+- 修复 Token 计数严重低估：AI 消息未包含 thinking_content 和 ai_block 内容，用户消息 token_count 也未计入统计（多次迭代修复）
+- 修复 SSE 流式传输中跨 token 分割导致 ai_block 解析失败
+- 修复 ai_block 字段可能为非数组类型导致的渲染崩溃
+- 修复 LLM 聊天历史持久化失效问题
+- 修复 ThinkingCard 吸顶标题透字问题和 position: sticky 与 overflow:hidden 冲突
+- 修复 ChatPanel 智能滚动异常
+- 修复 LLMClient base_url 为 None 时的启动崩溃
+
+### 其他改进
+
+- 历史会话 Token 数据自动回填修复
+- 短 prompt 不再显示截断省略号
+- SSE 事件输出简化，统一查询 LIMIT，技能内容缓存
+
 ## [1.4.0] - 2026-05-03
 
 ### 新功能
@@ -198,6 +230,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.5.0]: https://github.com/user/OpenImage/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/user/OpenImage/compare/v1.3.2...v1.4.0
 [1.3.2]: https://github.com/user/OpenImage/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/user/OpenImage/compare/v1.3.0...v1.3.1
