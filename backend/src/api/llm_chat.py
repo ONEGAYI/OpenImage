@@ -1,9 +1,13 @@
 """LLM 聊天会话 + 消息 API。"""
+import json
 import uuid
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from src.core.llm_tokenizer import estimate_tokens
 
 router = APIRouter(prefix="/api", tags=["llm-chat"])
 
@@ -33,6 +37,12 @@ class MessageEdit(BaseModel):
 
 class BatchDelete(BaseModel):
     message_ids: list[str]
+
+
+class ChatRequest(BaseModel):
+    content: str
+    attachments: list[dict] | None = None
+    form_response: dict | None = None
 
 
 # ── 聊天会话 CRUD ──
@@ -190,3 +200,129 @@ async def undo_delete_message(message_id: str, request: Request):
     )
     await conn.commit()
     return {"ok": True}
+
+
+# ── SSE 聊天 ──
+
+
+@router.post("/llm-chats/{chat_id}/chat")
+async def chat(chat_id: str, request: Request, body: ChatRequest):
+    db = _db(request)
+    conn = db.connection()
+    llm_client = request.app.state.llm_client
+
+    # 验证聊天会话存在
+    cursor = await conn.execute("SELECT session_id FROM llm_chat_sessions WHERE id = ?", (chat_id,))
+    session_row = await cursor.fetchone()
+    if not session_row:
+        raise HTTPException(404, "聊天会话不存在")
+
+    # 保存用户消息
+    user_msg_id = _gen_id("lm")
+    now = datetime.utcnow().isoformat()
+    attachments_json = json.dumps(body.attachments) if body.attachments else None
+    await conn.execute(
+        "INSERT INTO llm_messages (id, chat_session_id, role, content, attachments, created_at) "
+        "VALUES (?, ?, 'user', ?, ?, ?)",
+        (user_msg_id, chat_id, body.content, attachments_json, now),
+    )
+    await conn.commit()
+
+    # 加载历史消息（排除已删除的）
+    cursor = await conn.execute(
+        "SELECT role, content, ai_block FROM llm_messages "
+        "WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
+        (chat_id,),
+    )
+    history_rows = await cursor.fetchall()
+
+    # 构建历史消息（ai_block 摘要附加到 content）
+    history = []
+    for r in history_rows:
+        msg = {"role": r[0], "content": r[1]}
+        if r[2]:  # ai_block
+            try:
+                block = json.loads(r[2])
+                if block.get("type") == "questions":
+                    labels = ", ".join(f["label"] for f in block.get("fields", []))
+                    msg["content"] += f"\n[之前询问了用户：{labels}]"
+                elif block.get("type") == "suggestions":
+                    titles = ", ".join(s["title"] for s in block.get("items", []))
+                    msg["content"] += f"\n[之前提供了以下方案：{titles}]"
+            except json.JSONDecodeError:
+                pass
+        history.append(msg)
+
+    # 获取系统提示词
+    system_prompt = request.app.state.llm_settings.get("llm_system_prompt", "")
+
+    # 构建消息列表
+    messages = llm_client.build_messages(
+        system_prompt=system_prompt or "你是一个专业的图片提示词助手。",
+        history=history[:-1],  # 排除刚保存的用户消息（build_messages 会添加）
+        user_content=body.content,
+        attachments=body.attachments or [],
+    )
+
+    async def event_generator():
+        full_text = ""
+        ai_block_data = None
+        prompt_tokens = 0
+        completion_tokens = 0
+
+        try:
+            async for event in llm_client.chat_stream(messages):
+                if event.type == "token":
+                    full_text += event.data["text"]
+                    yield f"event: token\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                elif event.type == "buffering":
+                    yield f"event: buffering\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                elif event.type == "ai_block":
+                    ai_block_data = event.data
+                    yield f"event: ai_block\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                elif event.type == "parse_warning":
+                    yield f"event: parse_warning\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                elif event.type == "usage":
+                    prompt_tokens = event.data.get("prompt_tokens", 0)
+                    completion_tokens = event.data.get("completion_tokens", 0)
+                    yield f"event: usage\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+
+                elif event.type == "error":
+                    yield f"event: error\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+                    return
+
+            # 保存 AI 回复
+            ai_msg_id = _gen_id("lm")
+            token_count = completion_tokens or estimate_tokens(full_text)
+            ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
+
+            await conn.execute(
+                "INSERT INTO llm_messages (id, chat_session_id, role, content, ai_block, token_count, created_at) "
+                "VALUES (?, ?, 'assistant', ?, ?, ?, ?)",
+                (ai_msg_id, chat_id, full_text, ai_block_json, token_count, datetime.utcnow().isoformat()),
+            )
+
+            # 更新会话 token 统计
+            total_add = prompt_tokens + completion_tokens
+            if total_add > 0:
+                await conn.execute(
+                    "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
+                    (total_add, datetime.utcnow().isoformat(), chat_id),
+                )
+            else:
+                await conn.execute(
+                    "UPDATE llm_chat_sessions SET updated_at = ? WHERE id = ?",
+                    (datetime.utcnow().isoformat(), chat_id),
+                )
+            await conn.commit()
+
+            yield f'event: completed\ndata: {json.dumps({"message_id": ai_msg_id, "token_count": token_count}, ensure_ascii=False)}\n\n'
+
+        except Exception as e:
+            yield f'event: error\ndata: {json.dumps({"code": "stream_error", "message": str(e)}, ensure_ascii=False)}\n\n'
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
