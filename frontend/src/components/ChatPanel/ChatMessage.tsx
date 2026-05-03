@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AiBlock, LLMMessage } from "../../types";
 import AiBlockRenderer from "./AiBlockRenderer";
@@ -10,10 +11,13 @@ interface Props {
   streamingText?: string;
   currentAiBlock?: AiBlock | null;
   streamingThinking?: string;
+  isLast?: boolean;
+  onDelete?: () => void;
 }
 
-export default function ChatMessage({ message, streamingText, currentAiBlock, streamingThinking }: Props) {
+export default function ChatMessage({ message, streamingText, currentAiBlock, streamingThinking, isLast, onDelete }: Props) {
   const { t } = useTranslation();
+  const [hovered, setHovered] = useState(false);
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -49,9 +53,42 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
   const displayText = isInterrupted ? bodyText.replace(INTERRUPTED_MARKER, "") : bodyText;
   const showBody = isUser || !!(bodyText || "").trim();
 
+  const showDelete = isLast && onDelete && !isStreaming;
+
   return (
-    <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-      <div style={{ maxWidth: "85%", display: "flex", flexDirection: "column", gap: 6 }}>
+    <div
+      style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div style={{ position: "relative", maxWidth: "85%", display: "flex", flexDirection: "column", gap: 6 }}>
+        {showDelete && (
+          <div
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            style={{
+              position: "absolute",
+              top: -8,
+              ...(isUser ? { left: -8, right: "unset" } : { right: -8, left: "unset" }),
+              width: 20,
+              height: 20,
+              borderRadius: "50%",
+              background: "#e74c3c",
+              color: "#fff",
+              display: hovered ? "flex" : "none",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 11,
+              cursor: "pointer",
+              zIndex: 2,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+              transition: "opacity 0.15s, transform 0.15s",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; (e.currentTarget as HTMLDivElement).style.transform = "scale(1.15)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0.7"; (e.currentTarget as HTMLDivElement).style.transform = "scale(1)"; }}
+          >
+            ✕
+          </div>
+        )}
         {thinkingContent && (
           <ThinkingCard
             content={thinkingContent}
