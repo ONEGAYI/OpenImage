@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from src.core.llm_prompt import compose_system_prompt
-from src.core.llm_tokenizer import estimate_tokens
+from src.core.llm_tokenizer import estimate_message_tokens, estimate_tokens
 
 DEFAULT_CHAT_NAME = "新对话"
 
@@ -76,27 +76,37 @@ async def list_chat_sessions(session_id: str, request: Request):
         for r in rows
     ]
 
-    # 回填 total_tokens 为 0 的旧会话
-    stale_ids = [r["id"] for r in results if r["total_tokens"] == 0]
-    if stale_ids:
-        placeholders = ",".join("?" for _ in stale_ids)
+    # 回填 token 数据异常的会话：重新计算 token_count（含 thinking + ai_block + 用户消息）
+    needs_fix = []
+    msg_fixes = []
+    for r in results:
         cursor = await conn.execute(
-            f"SELECT chat_session_id, COALESCE(SUM(token_count), 0) "
-            f"FROM llm_messages WHERE chat_session_id IN ({placeholders}) AND deleted_at IS NULL "
-            f"GROUP BY chat_session_id",
-            stale_ids,
+            "SELECT id, role, content, thinking_content, ai_block, token_count "
+            "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL",
+            (r["id"],),
         )
-        token_map = dict(await cursor.fetchall())
-        for r in results:
-            if r["id"] in token_map:
-                r["total_tokens"] = token_map[r["id"]]
-        await conn.execute(
-            f"UPDATE llm_chat_sessions SET total_tokens = ("
-            f"SELECT COALESCE(SUM(token_count), 0) FROM llm_messages "
-            f"WHERE chat_session_id = llm_chat_sessions.id AND deleted_at IS NULL"
-            f") WHERE id IN ({placeholders})",
-            stale_ids,
-        )
+        msgs = await cursor.fetchall()
+        new_total = 0
+        any_updated = False
+        for msg in msgs:
+            _, role, content, thinking, block, saved_tc = msg
+            est = estimate_message_tokens(
+                role=role, content=content,
+                thinking_content=thinking,
+                ai_block=json.loads(block) if block else None,
+                saved_token_count=saved_tc,
+            )
+            if est != saved_tc:
+                msg_fixes.append((est, msg[0]))
+                any_updated = True
+            new_total += est
+        if any_updated or r["total_tokens"] != new_total:
+            r["total_tokens"] = new_total
+            needs_fix.append((new_total, r["id"]))
+    if msg_fixes:
+        await conn.executemany("UPDATE llm_messages SET token_count = ? WHERE id = ?", msg_fixes)
+    if needs_fix:
+        await conn.executemany("UPDATE llm_chat_sessions SET total_tokens = ? WHERE id = ?", needs_fix)
         await conn.commit()
 
     return results
@@ -254,14 +264,15 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     if not session_row:
         raise HTTPException(404, "聊天会话不存在")
 
-    # 保存用户消息
+    # 保存用户消息（含 token_count）
     user_msg_id = _gen_id("lm")
     now = datetime.now(UTC).isoformat()
     attachments_json = json.dumps(body.attachments) if body.attachments else None
+    user_token_count = estimate_tokens(body.content)
     await conn.execute(
-        "INSERT INTO llm_messages (id, chat_session_id, role, content, attachments, created_at) "
-        "VALUES (?, ?, 'user', ?, ?, ?)",
-        (user_msg_id, chat_id, body.content, attachments_json, now),
+        "INSERT INTO llm_messages (id, chat_session_id, role, content, token_count, attachments, created_at) "
+        "VALUES (?, ?, 'user', ?, ?, ?, ?)",
+        (user_msg_id, chat_id, body.content, user_token_count, attachments_json, now),
     )
     await conn.commit()
 
@@ -355,7 +366,11 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             # 保存 AI 回复
             ai_msg_id = _gen_id("lm")
-            token_count = completion_tokens or estimate_tokens(full_text)
+            # token_count 需涵盖全部输出：文本 + thinking + ai_block
+            token_count = max(
+                completion_tokens,
+                estimate_message_tokens("assistant", full_text, thinking_content, ai_block_data),
+            )
             ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
 
             await conn.execute(
@@ -367,10 +382,11 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                  datetime.now(UTC).isoformat()),
             )
 
-            # 更新会话 token 统计（API 返回 usage 时用精确值，否则用估算）
-            total_add = prompt_tokens + completion_tokens
-            if total_add == 0:
-                total_add = estimate_tokens(system_prompt) + token_count
+            # 更新会话 token 统计（增量累加，优先 API usage 校准）
+            total_add = max(
+                prompt_tokens + completion_tokens,
+                user_token_count + token_count,
+            )
             now = datetime.now(UTC).isoformat()
             await conn.execute(
                 "UPDATE llm_chat_sessions SET total_tokens = total_tokens + ?, updated_at = ? WHERE id = ?",
