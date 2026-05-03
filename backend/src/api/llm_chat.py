@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from src.core.llm_prompt import compose_system_prompt
 from src.core.llm_tokenizer import estimate_tokens
 
 router = APIRouter(prefix="/api", tags=["llm-chat"])
@@ -258,8 +259,6 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             except json.JSONDecodeError:
                 pass
         history.append(msg)
-
-    from src.core.llm_prompt import compose_system_prompt
 
     # 查询当前会话图片（用于 L3 上下文注入）
     cursor = await conn.execute(
