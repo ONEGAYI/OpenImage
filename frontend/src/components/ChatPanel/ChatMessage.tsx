@@ -18,6 +18,7 @@ interface Props {
 export default function ChatMessage({ message, streamingText, currentAiBlock, streamingThinking, isLast, onDelete }: Props) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
+  const [deleteHovered, setDeleteHovered] = useState(false);
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -79,12 +80,14 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
               justifyContent: "center",
               fontSize: 11,
               cursor: "pointer",
+              opacity: deleteHovered ? 1 : 0.7,
+              transform: deleteHovered ? "scale(1.15)" : "scale(1)",
               zIndex: 2,
               boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
               transition: "opacity 0.15s, transform 0.15s",
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; (e.currentTarget as HTMLDivElement).style.transform = "scale(1.15)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0.7"; (e.currentTarget as HTMLDivElement).style.transform = "scale(1)"; }}
+            onMouseEnter={() => setDeleteHovered(true)}
+            onMouseLeave={() => setDeleteHovered(false)}
           >
             ✕
           </div>
