@@ -101,5 +101,32 @@
   "toast.imageSaved": "Image saved: {{name}}",
   "toast.imagesSaved": "{{count}} images saved",
 
-  "error.generateFailed": "Generation failed. Please check your API settings or network connection."
+  "error.generateFailed": "Generation failed. Please check your API settings or network connection.",
+
+  "llm": {
+    "toggle": "AI Assistant",
+    "placeholder": "Discuss your ideas with AI...",
+    "send": "Send",
+    "newChat": "New Chat",
+    "manage": "Manage",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "tokenCount": "≈{{count}} tokens",
+    "submitAnswer": "Submit",
+    "skip": "Skip",
+    "useForGeneration": "Generate",
+    "editAndUse": "Edit & Use",
+    "recommended": "Recommended",
+    "skippedSchemes": "{{count}} suggestions skipped, continuing",
+    "buffering": "Generating suggestions...",
+    "parseWarning": "Parse failed, showing as text",
+    "required": "Required",
+    "optional": "Optional",
+    "apiKey": "LLM API Key",
+    "baseUrl": "LLM Base URL",
+    "modelName": "LLM Model Name",
+    "visionSupport": "Vision Support",
+    "systemPrompt": "System Prompt",
+    "settingsTitle": "LLM AI Assistant Settings"
+  }
 }

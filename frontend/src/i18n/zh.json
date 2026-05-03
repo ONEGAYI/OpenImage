@@ -101,5 +101,32 @@
   "toast.imageSaved": "已保存图片 {{name}}",
   "toast.imagesSaved": "已保存 {{count}} 张图片",
 
-  "error.generateFailed": "生成失败，请检查 API 设置或网络连接"
+  "error.generateFailed": "生成失败，请检查 API 设置或网络连接",
+
+  "llm": {
+    "toggle": "AI 助手",
+    "placeholder": "和 AI 讨论你的创意...",
+    "send": "发送",
+    "newChat": "新对话",
+    "manage": "管理",
+    "collapse": "收起",
+    "expand": "展开",
+    "tokenCount": "≈{{count}} tokens",
+    "submitAnswer": "提交回答",
+    "skip": "跳过",
+    "useForGeneration": "采用生图",
+    "editAndUse": "编辑后用",
+    "recommended": "推荐",
+    "skippedSchemes": "{{count}} 个方案未选择，继续优化",
+    "buffering": "正在生成方案建议...",
+    "parseWarning": "结构化解析失败，已降级为文本展示",
+    "required": "必填",
+    "optional": "选填",
+    "apiKey": "LLM API 密钥",
+    "baseUrl": "LLM 基础 URL",
+    "modelName": "LLM 模型名称",
+    "visionSupport": "支持图像识别",
+    "systemPrompt": "系统提示词",
+    "settingsTitle": "LLM AI 助手设置"
+  }
 }
