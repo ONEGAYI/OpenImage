@@ -68,13 +68,38 @@ async def list_chat_sessions(session_id: str, request: Request):
         (session_id,),
     )
     rows = await cursor.fetchall()
-    return [
+    results = [
         {
             "id": r[0], "session_id": r[1], "name": r[2],
             "created_at": r[3], "updated_at": r[4], "total_tokens": r[5],
         }
         for r in rows
     ]
+
+    # 回填 total_tokens 为 0 的旧会话
+    stale_ids = [r["id"] for r in results if r["total_tokens"] == 0]
+    if stale_ids:
+        placeholders = ",".join("?" for _ in stale_ids)
+        cursor = await conn.execute(
+            f"SELECT chat_session_id, COALESCE(SUM(token_count), 0) "
+            f"FROM llm_messages WHERE chat_session_id IN ({placeholders}) AND deleted_at IS NULL "
+            f"GROUP BY chat_session_id",
+            stale_ids,
+        )
+        token_map = dict(await cursor.fetchall())
+        for r in results:
+            if r["id"] in token_map:
+                r["total_tokens"] = token_map[r["id"]]
+        await conn.execute(
+            f"UPDATE llm_chat_sessions SET total_tokens = ("
+            f"SELECT COALESCE(SUM(token_count), 0) FROM llm_messages "
+            f"WHERE chat_session_id = llm_chat_sessions.id AND deleted_at IS NULL"
+            f") WHERE id IN ({placeholders})",
+            stale_ids,
+        )
+        await conn.commit()
+
+    return results
 
 
 @router.post("/sessions/{session_id}/llm-chats")
