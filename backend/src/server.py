@@ -18,7 +18,7 @@ from src.api import images as images_api
 from src.api import settings as settings_api
 from src.api import inpaint as inpaint_api
 from src.api.llm_settings import router as llm_settings_api
-# from src.api.llm_chat import router as llm_chat_api  # Task 5 创建后取消注释
+from src.api.llm_chat import router as llm_chat_api
 from src.core.llm_client import LLMClient
 
 try:
@@ -82,7 +82,7 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
     app.include_router(settings_api.router)
     app.include_router(inpaint_api.router)
     app.include_router(llm_settings_api.router)
-    # app.include_router(llm_chat_api.router)  # Task 5 创建后取消注释
+    app.include_router(llm_chat_api.router)
 
     return app
 
