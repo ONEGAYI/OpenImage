@@ -7,6 +7,25 @@ import { getImageFileUrl, getSettings } from "../../services/api";
 import { fileToAttachment } from "../../utils/file";
 import type { MaskImageSource, AttachedFile, SettingsResponse } from "../../types";
 
+const M = {
+  bg: "#141413",
+  headerBg: "#181715",
+  headerBorder: "#252320",
+  footerBg: "#1c1b18",
+  inputBg: "#252320",
+  accentBtnBg: "#cc785c",
+  cancelBtnColor: "#cc785c",
+  dangerBtnBg: "#c96442",
+  errorBg: "#1f1b1b",
+  errorBorder: "#3d2020",
+  errorColor: "#c64545",
+  mutedText: "#a09d96",
+  fgText: "#faf9f5",
+  refBorder: "#3a3835",
+  dashedBorder: "#555",
+  placeholder: "#777",
+};
+
 interface MaskEditorProps {
   source: MaskImageSource;
   onClose: () => void;
@@ -49,7 +68,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
     img.src = imageUrl;
     return () => {
       cancelled = true;
-      img.src = "";  // 中止未完成的图片请求
+      img.src = "";
     };
   }, [imageUrl]);
 
@@ -96,7 +115,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
         style={{
           width: "92vw",
           height: "90vh",
-          background: "#141413",
+          background: M.bg,
           borderRadius: 12,
           overflow: "hidden",
           boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
@@ -108,13 +127,13 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
             alignItems: "center",
             justifyContent: "space-between",
             padding: "10px 20px",
-            background: "#181715",
-            borderBottom: "1px solid #252320",
+            background: M.headerBg,
+            borderBottom: `1px solid ${M.headerBorder}`,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ color: "#faf9f5", fontSize: 14, fontWeight: 500 }}>{t("mask.title")}</span>
-            <span style={{ color: "#a09d96", fontSize: 12 }}>{sourceLabel}</span>
+            <span style={{ color: M.fgText, fontSize: 14, fontWeight: 500 }}>{t("mask.title")}</span>
+            <span style={{ color: M.mutedText, fontSize: 12 }}>{sourceLabel}</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -122,8 +141,8 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
               style={{
                 padding: "6px 16px",
                 borderRadius: 6,
-                background: "#252320",
-                color: "#cc785c",
+                background: M.inputBg,
+                color: M.cancelBtnColor,
                 border: "none",
                 fontSize: 13,
                 fontWeight: 600,
@@ -137,8 +156,8 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
               style={{
                 padding: "6px 16px",
                 borderRadius: 6,
-                background: "#252320",
-                color: "#faf9f5",
+                background: M.inputBg,
+                color: M.fgText,
                 border: "none",
                 fontSize: 13,
                 cursor: "pointer",
@@ -168,9 +187,9 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           <div
             style={{
               padding: "8px 20px",
-              background: "#1f1b1b",
-              borderTop: "1px solid #3d2020",
-              color: "#c64545",
+              background: M.errorBg,
+              borderTop: `1px solid ${M.errorBorder}`,
+              color: M.errorColor,
               fontSize: 12,
               lineHeight: 1.5,
             }}
@@ -184,17 +203,17 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           gap: 6,
           alignItems: "center",
           padding: "6px 20px",
-          background: "#1c1b18",
-          borderTop: "1px solid #252320",
+          background: M.footerBg,
+          borderTop: `1px solid ${M.headerBorder}`,
           minHeight: references.length > 0 ? 40 : 28,
         }}>
-          <span style={{ fontSize: 10, color: "#a09d96", flexShrink: 0 }}>{t("mask.referenceImages")}</span>
+          <span style={{ fontSize: 10, color: M.mutedText, flexShrink: 0 }}>{t("mask.referenceImages")}</span>
           {references.map((ref) => (
             <div
               key={ref.id}
               style={{
                 width: 32, height: 32, borderRadius: 4,
-                border: "1px solid #3a3835", position: "relative", flexShrink: 0,
+                border: `1px solid ${M.refBorder}`, position: "relative", flexShrink: 0,
               }}
             >
               <img src={ref.preview_url} alt={ref.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -202,7 +221,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
                 onClick={() => handleRemoveReference(ref.id)}
                 style={{
                   position: "absolute", top: -3, right: -3, width: 13, height: 13,
-                  background: "#c96442", borderRadius: "50%",
+                  background: M.dangerBtnBg, borderRadius: "50%",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 7, color: "white", border: "none", cursor: "pointer",
                   lineHeight: 1,
@@ -213,9 +232,9 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           <button
             onClick={() => referenceFileRef.current?.click()}
             style={{
-              width: 32, height: 32, border: "1px dashed #555", borderRadius: 4,
+              width: 32, height: 32, border: `1px dashed ${M.dashedBorder}`, borderRadius: 4,
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#777", fontSize: 14, cursor: "pointer", flexShrink: 0,
+              color: M.placeholder, fontSize: 14, cursor: "pointer", flexShrink: 0,
               background: "transparent",
             }}
           >+</button>
@@ -235,8 +254,8 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
             alignItems: "center",
             gap: 12,
             padding: "12px 20px",
-            background: "#181715",
-            borderTop: "1px solid #252320",
+            background: M.headerBg,
+            borderTop: `1px solid ${M.headerBorder}`,
           }}
         >
           <input
@@ -247,9 +266,9 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
               flex: 1,
               padding: "9px 14px",
               borderRadius: 8,
-              background: "#252320",
+              background: M.inputBg,
               border: "none",
-              color: "#faf9f5",
+              color: M.fgText,
               fontSize: 13,
               outline: "none",
             }}
@@ -261,7 +280,7 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
           />
           {apiMode === "images" && references.length > 0 && (
             <span
-              style={{ fontSize: 12, color: "#a09d96", cursor: "help" }}
+              style={{ fontSize: 12, color: M.mutedText, cursor: "help" }}
               title={t("mask.imagesModeWarning")}
             >
               ⚠️
@@ -273,8 +292,8 @@ export default function MaskEditor({ source, onClose, onGenerate, initialReferen
             style={{
               padding: "9px 22px",
               borderRadius: 8,
-              background: "#cc785c",
-              color: "#faf9f5",
+              background: M.accentBtnBg,
+              color: M.fgText,
               border: "none",
               fontSize: 13,
               fontWeight: 500,

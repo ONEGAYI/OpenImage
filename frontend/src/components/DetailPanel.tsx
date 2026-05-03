@@ -5,6 +5,7 @@ import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
 import MaskEditor from "./MaskEditor";
 import { useToastStore } from "../stores/toastStore";
+import { triggerDownload } from "../utils/file";
 import type { Image, MaskImageSource, InpaintRequest } from "../types";
 
 export default function DetailPanel() {
@@ -40,22 +41,15 @@ export default function DetailPanel() {
 
   const handleSave = () => {
     if (!singleImage) return;
-    const url = getImageFileUrl(singleImage.id);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `openimage_step${singleImage.step}.png`;
-    a.click();
-    showToast(t("toast.imageSaved", { name: a.download }));
+    const filename = `openimage_step${singleImage.step}.png`;
+    triggerDownload(getImageFileUrl(singleImage.id), filename);
+    showToast(t("toast.imageSaved", { name: filename }));
   };
 
   const handleSaveAll = () => {
     selectedImages.forEach((img, i) => {
       setTimeout(() => {
-        const url = getImageFileUrl(img.id);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `openimage_step${img.step}.png`;
-        a.click();
+        triggerDownload(getImageFileUrl(img.id), `openimage_step${img.step}.png`);
       }, i * 200);
     });
     showToast(t("toast.imagesSaved", { count: selectedImages.length }));

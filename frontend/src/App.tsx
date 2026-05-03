@@ -9,6 +9,7 @@ import DetailPanel from "./components/DetailPanel";
 import Topbar from "./components/Topbar";
 import SettingsDialog from "./components/SettingsDialog";
 import ToastContainer from "./components/Toast";
+import Spinner from "./components/Spinner";
 
 interface EBProps { children: ReactNode; t: (key: string) => string }
 interface EBState { error: Error | null }
@@ -117,17 +118,7 @@ function App() {
         style={{ background: "var(--bg)", color: "var(--fg)" }}
       >
         <div style={{ textAlign: "center" }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              border: "3px solid var(--border)",
-              borderTopColor: "var(--accent)",
-              borderRadius: "50%",
-              animation: "spin 1s linear infinite",
-              margin: "0 auto 16px",
-            }}
-          />
+          <Spinner style={{ margin: "0 auto 16px" }} />
           <p style={{ fontSize: 14, opacity: 0.7 }}>{t("app.starting")}</p>
         </div>
       </div>

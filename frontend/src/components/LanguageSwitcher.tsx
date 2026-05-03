@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import PopoverArrow from "./PopoverArrow";
+import { useClickOutside } from "../hooks/useClickOutside";
 
 const LANGUAGES = [
   { code: "en", label: "English", badge: "EN" },
@@ -9,18 +11,8 @@ const LANGUAGES = [
 export default function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const closeMenu = useCallback(() => setOpen(false), []);
+  const ref = useClickOutside(open, closeMenu);
 
   const currentLang = LANGUAGES.find((l) => l.code === i18n.language) ?? LANGUAGES[0];
 
@@ -90,19 +82,7 @@ export default function LanguageSwitcher() {
             padding: 4,
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              top: -6,
-              right: 11,
-              width: 12,
-              height: 12,
-              background: "var(--surface)",
-              borderLeft: "1px solid var(--border)",
-              borderTop: "1px solid var(--border)",
-              transform: "rotate(45deg)",
-            }}
-          />
+<PopoverArrow position="top" align="right" />
           {LANGUAGES.map((lang) => {
             const active = lang.code === i18n.language;
             return (

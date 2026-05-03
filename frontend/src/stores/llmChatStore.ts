@@ -129,11 +129,10 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     }));
   },
 
-  deleteChatSession: async (chatId: string, sessionId: string) => {
+  deleteChatSession: async (chatId: string, _sessionId: string) => {
     await api.deleteLLMChatSession(chatId);
-    const sessions = await api.listLLMChatSessions(sessionId);
     set((s) => ({
-      chatSessions: sessions,
+      chatSessions: s.chatSessions.filter((cs) => cs.id !== chatId),
       ...(s.currentChatSessionId === chatId
         ? { currentChatSessionId: null, messages: [] }
         : {}),
@@ -144,7 +143,6 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     const { currentChatSessionId } = get();
     if (!currentChatSessionId) return;
 
-    // 从 generationStore 读取当前生成偏好
     const gen = useGenerationStore.getState();
     const context = {
       aspect_ratio: gen.aspectRatio,
@@ -165,6 +163,50 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     });
     set((s) => ({ messages: [...s.messages, tempUserMsg] }));
 
+    const handleCompleted = (data: {
+      message_id: string; token_count: number; total_tokens: number;
+      session_name?: string; thinking_content?: string; thinking_duration_ms?: number;
+    }) => {
+      if (!data.message_id) return;
+      const { streamingText, streamingThinking, currentAiBlock } = get();
+      const aiMsg = createLLMMessage({
+        id: data.message_id,
+        chat_session_id: currentChatSessionId,
+        role: "assistant",
+        content: streamingText,
+        ai_block: currentAiBlock ? JSON.stringify(currentAiBlock) : null,
+        token_count: data.token_count,
+        thinking_content: data.thinking_content || streamingThinking || null,
+        thinking_duration_ms: data.thinking_duration_ms ?? null,
+      });
+      set((s) => ({
+        ...STREAM_RESET,
+        messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
+        chatSessions: s.chatSessions.map((cs) =>
+          cs.id === currentChatSessionId
+            ? {
+                ...cs,
+                total_tokens: data.total_tokens ?? cs.total_tokens,
+                ...(data.session_name ? { name: data.session_name } : {}),
+              }
+            : cs
+        ),
+      }));
+    };
+
+    const handleError = (data: { code: string; message: string }) => {
+      const errMsg = createLLMMessage({
+        id: `err_${Date.now()}`,
+        chat_session_id: currentChatSessionId!,
+        role: "system",
+        content: `错误：${data.message}`,
+      });
+      set((s) => ({
+        messages: [...s.messages, errMsg],
+        ...STREAM_RESET,
+      }));
+    };
+
     const controller = api.sendLLMChat(
       currentChatSessionId,
       { content, attachments, form_response: formResponse, context },
@@ -176,14 +218,10 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
           set((s) => ({ streamingThinking: s.streamingThinking + text }));
         },
         onBuffering: (data) => {
-          set({
-            bufferingState: "buffering",
-            bufferElapsed: data.elapsed_ms,
-          });
+          set({ bufferingState: "buffering", bufferElapsed: data.elapsed_ms });
         },
         onAiBlock: (data) => {
-          const block = data as unknown as AiBlock;
-          set({ currentAiBlock: block, bufferingState: "ready" });
+          set({ currentAiBlock: data as unknown as AiBlock, bufferingState: "ready" });
         },
         onParseWarning: () => {
           set({ bufferingState: "idle" });
@@ -194,44 +232,8 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
             chatSessions: updateChatSessionTokens(s.chatSessions, s.currentChatSessionId, total),
           }));
         },
-        onCompleted: (data) => {
-          if (!data.message_id) return;
-          const aiMsg = createLLMMessage({
-            id: data.message_id,
-            chat_session_id: currentChatSessionId,
-            role: "assistant",
-            content: get().streamingText,
-            ai_block: get().currentAiBlock ? JSON.stringify(get().currentAiBlock) : null,
-            token_count: data.token_count,
-            thinking_content: data.thinking_content || get().streamingThinking || null,
-            thinking_duration_ms: data.thinking_duration_ms ?? null,
-          });
-          set((s) => ({
-            ...STREAM_RESET,
-            messages: [...s.messages.filter((m) => !m.id.startsWith("temp_")), aiMsg],
-            chatSessions: s.chatSessions.map((cs) =>
-              cs.id === currentChatSessionId
-                ? {
-                    ...cs,
-                    total_tokens: data.total_tokens ?? cs.total_tokens,
-                    ...(data.session_name ? { name: data.session_name } : {}),
-                  }
-                : cs
-            ),
-          }));
-        },
-        onError: (data) => {
-          const errMsg = createLLMMessage({
-            id: `err_${Date.now()}`,
-            chat_session_id: currentChatSessionId!,
-            role: "system",
-            content: `错误：${data.message}`,
-          });
-          set((s) => ({
-            messages: [...s.messages, errMsg],
-            ...STREAM_RESET,
-          }));
-        },
+        onCompleted: handleCompleted,
+        onError: handleError,
       },
     );
 

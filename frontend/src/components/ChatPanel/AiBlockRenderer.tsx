@@ -20,12 +20,11 @@ function normalizeOptions(options: unknown[]): string[] {
   });
 }
 
-/** 规范化 LLM 返回的 ai_block — 兼容 LLM 输出格式的不确定性。 */
 function normalizeBlock(raw: unknown): AiBlock {
+  if (!raw || typeof raw !== "object") return raw as AiBlock;
   const r = raw as Record<string, unknown>;
   const toArray = (v: unknown): unknown[] => Array.isArray(v) ? v : [];
 
-  // 推断缺失的 type（不直接修改传入对象）
   let blockType = r.type as string | undefined;
   if (!blockType) {
     if (Array.isArray(r.questions) || Array.isArray(r.fields)) blockType = "questions";
@@ -34,6 +33,7 @@ function normalizeBlock(raw: unknown): AiBlock {
 
   if (blockType === "questions") {
     const fields = toArray(r.fields || r.data || r.questions).map((f) => {
+      if (!f || typeof f !== "object") return f;
       const field = { ...(f as Record<string, unknown>) };
       if (field.options) field.options = normalizeOptions(toArray(field.options));
       return field;

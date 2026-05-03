@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
 import { getImageFileUrl } from "../services/api";
+import Spinner from "./Spinner";
 
 export default function Gallery() {
   const { t } = useTranslation();
@@ -92,7 +93,7 @@ export default function Gallery() {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3" style={{ color: "var(--muted)" }}>
-                <div className="rounded-full animate-spin" style={{ width: 32, height: 32, border: "2.5px solid var(--border)", borderTopColor: "var(--accent)" }} />
+                <Spinner size={32} borderWidth={2.5} className="rounded-full" />
                 <div className="text-xs" style={{ color: "var(--faint)" }}>{t("common.generating")}</div>
               </div>
             )}

@@ -253,6 +253,8 @@ export function useMaskCanvas(
     }
 
     const { tool } = stateRef.current;
+    const patch: Partial<MaskCanvasState> = { isDrawing: false };
+
     if (tool === "rectangle" && currentRectRef.current) {
       const maskC = ensureMaskCanvas();
       if (maskC) {
@@ -261,18 +263,19 @@ export function useMaskCanvas(
           const r = currentRectRef.current;
           ctx.fillStyle = "rgba(205,120,92,1)";
           ctx.globalCompositeOperation = "source-over";
-          const x = Math.min(r.start.x, r.end.x);
-          const y = Math.min(r.start.y, r.end.y);
-          const w = Math.abs(r.end.x - r.start.x);
-          const h = Math.abs(r.end.y - r.start.y);
-          ctx.fillRect(x, y, w, h);
-          updateState(() => ({ hasMask: true }));
+          ctx.fillRect(
+            Math.min(r.start.x, r.end.x),
+            Math.min(r.start.y, r.end.y),
+            Math.abs(r.end.x - r.start.x),
+            Math.abs(r.end.y - r.start.y),
+          );
+          patch.hasMask = true;
         }
       }
       currentRectRef.current = null;
     }
 
-    updateState(() => ({ isDrawing: false }));
+    updateState(() => patch);
     renderOverlay();
   }, [ensureMaskCanvas, renderOverlay, updateState]);
 

@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useGenerationStore, RATIO_OPTIONS, SIZE_OPTIONS } from "../stores/generationStore";
+import PopoverArrow from "./PopoverArrow";
+import { useClickOutside } from "../hooks/useClickOutside";
 
 const RATIO_ICONS: Record<string, { w: number; h: number }> = {
   "1:1": { w: 20, h: 20 },
@@ -44,18 +46,8 @@ export default function RatioSelector() {
   const { t } = useTranslation();
   const { aspectRatio, imageSize, setAspectRatio, setImageSize } = useGenerationStore();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open]);
+  const closePopover = useCallback(() => setOpen(false), []);
+  const containerRef = useClickOutside(open, closePopover);
 
   const isCustom = aspectRatio !== "1:1" || imageSize !== "1K";
 
@@ -142,20 +134,7 @@ export default function RatioSelector() {
             zIndex: 50,
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              bottom: -6,
-              left: "50%",
-              marginLeft: -6,
-              width: 12,
-              height: 12,
-              background: "var(--surface)",
-              borderRight: "1px solid var(--border)",
-              borderBottom: "1px solid var(--border)",
-              transform: "rotate(45deg)",
-            }}
-          />
+<PopoverArrow position="bottom" />
 
           <div style={{ marginBottom: 12 }}>
             <div style={sectionLabelStyle}>{t("ratio.ratio")}</div>

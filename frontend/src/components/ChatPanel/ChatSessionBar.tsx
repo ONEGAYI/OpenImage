@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLLMChatStore } from "../../stores/llmChatStore";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useClickOutside } from "../../hooks/useClickOutside";
 
 export default function ChatSessionBar() {
   const { t } = useTranslation();
@@ -21,11 +22,15 @@ export default function ChatSessionBar() {
 
   const [showManage, setShowManage] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const closeManage = useCallback(() => {
+    setShowManage(false);
+    setSelectedIds(new Set());
+  }, []);
+  const menuRef = useClickOutside(showManage, closeManage);
 
   const startRename = () => {
     if (!currentSession) return;
@@ -57,19 +62,6 @@ export default function ChatSessionBar() {
       cancelRename();
     }
   };
-
-  // 点击弹窗外部关闭
-  useEffect(() => {
-    if (!showManage) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowManage(false);
-        setSelectedIds(new Set());
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [showManage]);
 
   const handleNew = async () => {
     if (activeSessionId) {

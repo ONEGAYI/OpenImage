@@ -1,8 +1,14 @@
-export interface Session {
+export type MessageRole = "user" | "assistant" | "system";
+export type ApiMode = "responses" | "images" | "chat";
+
+interface BaseEntity {
   id: string;
-  name: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Session extends BaseEntity {
+  name: string;
   head_response_id: string | null;
   image_count?: number;
   latest_image_id?: string | null;
@@ -59,7 +65,7 @@ export interface SettingsResponse {
   api_key_preview: string | null;
   api_key: string | null;
   base_url: string | null;
-  api_mode: "responses" | "images" | "chat";
+  api_mode: ApiMode;
   model_name: string;
   resolved_endpoint: string;
   full_version: string;
@@ -96,19 +102,16 @@ export interface AttachedFile {
 
 // ── LLM AI 助手 ──
 
-export interface LLMChatSession {
-  id: string;
+export interface LLMChatSession extends BaseEntity {
   session_id: string;
   name: string;
-  created_at: string;
-  updated_at: string;
   total_tokens: number;
 }
 
 export interface LLMMessage {
   id: string;
   chat_session_id: string;
-  role: "user" | "assistant" | "system";
+  role: MessageRole;
   content: string;
   ai_block: string | null;
   token_count: number;
