@@ -14,6 +14,7 @@ export default function ChatPanel() {
   const streamingThinking = useLLMChatStore((s) => s.streamingThinking);
   const bufferingState = useLLMChatStore((s) => s.bufferingState);
   const currentAiBlock = useLLMChatStore((s) => s.currentAiBlock);
+  const deleteLastMessage = useLLMChatStore((s) => s.deleteLastMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>(0);
   const [isFollowing, setIsFollowing] = useState(true);
@@ -106,8 +107,13 @@ export default function ChatPanel() {
           gap: 10,
         }}
       >
-        {messages.map((msg) => (
-          <ChatMessage key={msg.id} message={msg} />
+        {messages.map((msg, index) => (
+          <ChatMessage
+            key={msg.id}
+            message={msg}
+            isLast={index === messages.length - 1 && !isStreaming}
+            onDelete={index === messages.length - 1 ? deleteLastMessage : undefined}
+          />
         ))}
         {/* 流式生成中的虚拟 assistant 消息 — messages 数组中没有 assistant，需要单独渲染 */}
         {isStreaming && (
