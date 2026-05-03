@@ -2,8 +2,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from src.core.config import Config
 from src.core.database import Database
@@ -28,6 +29,32 @@ except ImportError:
 
 APP_VERSION = "1.4.0"
 FULL_VERSION = f"v{APP_VERSION}-{BUILD_TIMESTAMP}" if BUILD_TIMESTAMP else f"v{APP_VERSION}-dev"
+
+
+class _CORPHeaderMiddleware:
+    """Pure ASGI middleware — adds Cross-Origin-Resource-Policy header.
+
+    BaseHTTPMiddleware (@app.middleware("http")) uses an asyncio.Queue to relay
+    response bodies, which batches SSE events and breaks streaming.
+    This implementation injects the header at the ASGI level with zero buffering.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_corp(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"cross-origin-resource-policy", b"cross-origin"))
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, send_with_corp)
 
 
 def create_app(base_dir: Path | None = None) -> FastAPI:
@@ -62,18 +89,14 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
     app = FastAPI(title="OpenImage", version=APP_VERSION, lifespan=lifespan)
     app.state.full_version = FULL_VERSION
 
-    @app.middleware("http")
-    async def add_corp_header(request: Request, call_next):
-        response = await call_next(request)
-        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
-        return response
-
+    app.add_middleware(_CORPHeaderMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"^(tauri://localhost|https?://tauri\.localhost|https?://localhost:\d+)$",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        max_age=600,
     )
 
     app.include_router(sessions_api.router)

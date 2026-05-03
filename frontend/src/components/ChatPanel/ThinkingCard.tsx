@@ -27,7 +27,7 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
       }}
     >
       <div
-        onClick={() => !isStreaming && setExpanded(!expanded)}
+        onClick={() => setExpanded(!expanded)}
         style={{
           padding: "5px 10px",
           background: "rgba(201,100,66,0.06)",
@@ -71,6 +71,7 @@ export default function ThinkingCard({ content, durationMs, streaming }: Props) 
           }}
         >
           {content}
+          {isStreaming && <span className="animate-pulse" style={{ opacity: 0.5 }}>▊</span>}
         </div>
       )}
     </div>

@@ -102,6 +102,8 @@
   "toast.imagesSaved": "{{count}} images saved",
 
   "error.generateFailed": "Generation failed. Please check your API settings or network connection.",
+  "error.render": "Render Error",
+  "error.retry": "Retry",
 
   "llm": {
     "toggle": "AI Assistant",
@@ -109,6 +111,10 @@
     "send": "Send",
     "newChat": "New Chat",
     "manage": "Manage",
+    "selectAll": "Select all",
+    "batchDelete": "Delete ({{count}})",
+    "delete": "Delete",
+    "noChats": "No conversations yet",
     "collapse": "Collapse",
     "expand": "Expand",
     "tokenCount": "≈{{count}} tokens",

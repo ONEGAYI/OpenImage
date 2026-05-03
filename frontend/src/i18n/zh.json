@@ -102,6 +102,8 @@
   "toast.imagesSaved": "已保存 {{count}} 张图片",
 
   "error.generateFailed": "生成失败，请检查 API 设置或网络连接",
+  "error.render": "渲染错误",
+  "error.retry": "重试",
 
   "llm": {
     "toggle": "AI 助手",
@@ -109,6 +111,10 @@
     "send": "发送",
     "newChat": "新对话",
     "manage": "管理",
+    "selectAll": "全选",
+    "batchDelete": "删除 ({{count}})",
+    "delete": "删除",
+    "noChats": "没有任何对话",
     "collapse": "收起",
     "expand": "展开",
     "tokenCount": "≈{{count}} tokens",

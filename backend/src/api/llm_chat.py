@@ -1,5 +1,6 @@
 """LLM 聊天会话 + 消息 API。"""
 import json
+import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -290,12 +291,18 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     )
 
     async def event_generator():
+        # 发送 SSE 注释撑破代理/TCP 初始缓冲，强制立即 flush
+        yield f": {' ' * 1024}\n\n"
+
         full_text = ""
         ai_block_data = None
         prompt_tokens = 0
         completion_tokens = 0
         thinking_content = ""
         thinking_duration_ms = 0
+
+        log = logging.getLogger(__name__)
+        log.debug("新聊天请求 model=%s url=%s", llm_client.model_name, llm_client.base_url)
 
         try:
             async for event in llm_client.chat_stream(messages):
@@ -316,7 +323,10 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                 yield f"event: {event.type}\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
 
                 if event.type == "error":
+                    log.error("LLM 流式错误: %s", event.data)
                     return
+
+            log.debug("流结束 full_text=%dchars", len(full_text))
 
             # 保存 AI 回复
             ai_msg_id = _gen_id("lm")
@@ -377,4 +387,12 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
         except Exception as e:
             yield f'event: error\ndata: {json.dumps({"code": "stream_error", "message": str(e)}, ensure_ascii=False)}\n\n'
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

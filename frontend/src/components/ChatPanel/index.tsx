@@ -15,12 +15,28 @@ export default function ChatPanel() {
   const bufferingState = useLLMChatStore((s) => s.bufferingState);
   const currentAiBlock = useLLMChatStore((s) => s.currentAiBlock);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
 
+  const isStreaming = !!streamingText || !!streamingThinking;
+
+  // 消息变化时立即滚动（加载历史、completed 等）
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, streamingText]);
+  }, [messages]);
+
+  // 流式 token 通过 rAF 节流滚动，避免每个 token 触发回流
+  useEffect(() => {
+    if (!isStreaming) return;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [streamingText, streamingThinking, isStreaming]);
 
   if (!panelExpanded) {
     const lastMsg = messages[messages.length - 1];
@@ -75,18 +91,30 @@ export default function ChatPanel() {
           gap: 10,
         }}
       >
-        {messages.map((msg, i) => {
-          const isLastAssistant = msg.role === "assistant" && i === messages.length - 1;
-          return (
-            <ChatMessage
-              key={msg.id}
-              message={msg}
-              streamingText={isLastAssistant && streamingText ? streamingText : undefined}
-              currentAiBlock={isLastAssistant ? currentAiBlock : null}
-              streamingThinking={isLastAssistant ? streamingThinking : undefined}
-            />
-          );
-        })}
+        {messages.map((msg) => (
+          <ChatMessage key={msg.id} message={msg} />
+        ))}
+        {/* 流式生成中的虚拟 assistant 消息 — messages 数组中没有 assistant，需要单独渲染 */}
+        {isStreaming && (
+          <ChatMessage
+            message={{
+              id: "__streaming__",
+              chat_session_id: "",
+              role: "assistant",
+              content: "",
+              ai_block: null,
+              token_count: 0,
+              attachments: null,
+              thinking_content: null,
+              thinking_duration_ms: null,
+              created_at: new Date().toISOString(),
+              deleted_at: null,
+            }}
+            streamingText={streamingText || ""}
+            currentAiBlock={currentAiBlock}
+            streamingThinking={streamingThinking}
+          />
+        )}
         {bufferingState === "buffering" && <BufferingIndicator />}
       </div>
     </div>

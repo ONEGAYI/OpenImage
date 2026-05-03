@@ -43,6 +43,13 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
   return (
     <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start" }}>
       <div style={{ maxWidth: "85%" }}>
+        {thinkingContent && (
+          <ThinkingCard
+            content={thinkingContent}
+            durationMs={thinkingDuration}
+            streaming={isStreaming}
+          />
+        )}
         <div
           style={{
             padding: "6px 10px",
@@ -59,13 +66,6 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
             <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
           )}
         </div>
-        {thinkingContent && (
-          <ThinkingCard
-            content={thinkingContent}
-            durationMs={thinkingDuration}
-            streaming={isStreaming}
-          />
-        )}
         {aiBlock && <AiBlockRenderer block={aiBlock} />}
       </div>
     </div>

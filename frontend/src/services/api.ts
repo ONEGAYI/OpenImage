@@ -112,14 +112,31 @@ export async function deleteImages(ids: string[]): Promise<void> {
 
 // --- SSE helpers ---
 
+// Vite 在编译时注入后端端口，用于 SSE 直连（绕过 proxy 缓冲）
+declare const __BACKEND_PORT__: number;
+
+/** SSE 连接直连后端（绕过 Vite proxy 的 body 缓冲） */
+function getSSEBaseUrl(): string {
+  if (isTauri) return getBaseUrl();
+  return `http://127.0.0.1:${__BACKEND_PORT__}`;
+}
+
 type SSEEventHandler = (event: string, data: unknown) => void;
 
 function connectSSE(url: string, body: unknown, handler: SSEEventHandler): AbortController {
   const controller = new AbortController();
 
-  fetch(url, {
+  // SSE 请求直连后端，避免 Vite proxy 缓冲整个响应
+  const sseBase = getSSEBaseUrl();
+  const fullUrl = url.startsWith("/") ? `${sseBase}${url}` : url;
+
+  fetch(fullUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "text/event-stream",
+      "Cache-Control": "no-cache",
+    },
     body: JSON.stringify(body),
     signal: controller.signal,
   })

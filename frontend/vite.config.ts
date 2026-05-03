@@ -21,6 +21,9 @@ export default defineConfig(async () => {
 
   return {
     plugins: [react(), tailwindcss()],
+    define: {
+      __BACKEND_PORT__: backendPort,
+    },
     clearScreen: false,
     server: {
       port: 1420,
@@ -40,6 +43,13 @@ export default defineConfig(async () => {
         "/api": {
           target: `http://127.0.0.1:${backendPort}`,
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyRes", (proxyRes, _req, res) => {
+              if (proxyRes.headers["content-type"]?.includes("text/event-stream")) {
+                res.flushHeaders();
+              }
+            });
+          },
         },
       },
     },
