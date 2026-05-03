@@ -138,6 +138,12 @@
     "thinking": "正在思考...",
     "thoughtFor": "已思考 {{seconds}} 秒",
     "scrollToLatest": "转到最新",
-    "blockParseError": "解析错误，请检查AI输出或向开发者反馈"
+    "blockParseError": "解析错误，请检查AI输出或向开发者反馈",
+    "rename": "重命名",
+    "renameConfirm": "确认",
+    "renameCancel": "取消",
+    "stop": "停止",
+    "streamingPlaceholder": "AI 正在回复...",
+    "interrupted": "生成已中断"
   }
 }

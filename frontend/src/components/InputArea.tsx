@@ -35,6 +35,10 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
   const sendMessage = useLLMChatStore((s) => s.sendMessage);
   const currentChatSessionId = useLLMChatStore((s) => s.currentChatSessionId);
   const createChatSession = useLLMChatStore((s) => s.createChatSession);
+  const isLLMStreaming = useLLMChatStore(
+    (s) => s.bufferingState === "streaming" || s.bufferingState === "buffering"
+  );
+  const cancelLLMStream = useLLMChatStore((s) => s.cancelStream);
 
   const cancelThisGeneration = useCallback(() => {
     if (sid) useGenerationStore.getState().cancelGeneration(sid);
@@ -228,14 +232,19 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTextareaInput}
-            placeholder={activeSessionId ? (aiEnabled ? t("llm.placeholder") : t("input.placeholder")) : t("input.noSessionPlaceholder")}
-            disabled={!activeSessionId}
+            placeholder={
+              !activeSessionId ? t("input.noSessionPlaceholder")
+              : isLLMStreaming ? t("llm.streamingPlaceholder")
+              : aiEnabled ? t("llm.placeholder")
+              : t("input.placeholder")
+            }
+            disabled={!activeSessionId || isLLMStreaming}
             rows={1}
             className="w-full block border outline-none resize-none transition-all"
             style={{
               padding: "9px 14px 9px 14px",
               paddingRight: 72,
-              background: "var(--input-bg)", borderColor: "var(--border)",
+              background: isLLMStreaming ? "var(--bg)" : "var(--input-bg)", borderColor: "var(--border)",
               borderRadius: "var(--radius-md)", color: "var(--fg)", fontSize: "13.5px", lineHeight: 1.5,
               minHeight: "40px", maxHeight: "100px",
             }}
@@ -246,14 +255,22 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             <AiToggle />
           </div>
         </div>
-        {isThisGenerating && !aiEnabled ? (
+        {(isThisGenerating && !aiEnabled) || isLLMStreaming ? (
           <button
-            onClick={cancelThisGeneration}
+            onClick={isLLMStreaming ? cancelLLMStream : cancelThisGeneration}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer"
-            style={{ padding: "9px 18px", minHeight: 40, background: "rgba(181,51,51,0.08)", color: "var(--error)", border: "1px solid rgba(181,51,51,0.2)" }}
+            style={{
+              padding: "9px 18px",
+              minHeight: 40,
+              background: "rgba(181,51,51,0.08)",
+              color: "var(--error)",
+              border: "1px solid rgba(181,51,51,0.2)",
+            }}
             onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.14)")}
             onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
-          >{t("common.cancel")}</button>
+          >
+            {t(isLLMStreaming ? "llm.stop" : "common.cancel")}
+          </button>
         ) : (
           <button
             onClick={aiEnabled ? handleSend : handleGenerate}

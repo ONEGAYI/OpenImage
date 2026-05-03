@@ -16,9 +16,47 @@ export default function ChatSessionBar() {
   const deleteChatSession = useLLMChatStore((s) => s.deleteChatSession);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
+  const renameChatSession = useLLMChatStore((s) => s.renameChatSession);
+  const currentSession = chatSessions.find((cs) => cs.id === currentChatSessionId);
+
   const [showManage, setShowManage] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const startRename = () => {
+    if (!currentSession) return;
+    setRenameValue(currentSession.name);
+    setIsRenaming(true);
+    setTimeout(() => renameInputRef.current?.select(), 0);
+  };
+
+  const confirmRename = async () => {
+    const name = renameValue.trim();
+    if (!name || !currentChatSessionId) {
+      setIsRenaming(false);
+      return;
+    }
+    await renameChatSession(currentChatSessionId, name);
+    setIsRenaming(false);
+  };
+
+  const cancelRename = () => {
+    setIsRenaming(false);
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      confirmRename();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelRename();
+    }
+  };
 
   // 点击弹窗外部关闭
   useEffect(() => {
@@ -88,27 +126,92 @@ export default function ChatSessionBar() {
         fontSize: 12,
       }}
     >
-      <select
-        value={currentChatSessionId || ""}
-        onChange={(e) => e.target.value && selectChatSession(e.target.value)}
-        style={{
-          flex: 1,
-          padding: "2px 6px",
-          border: "1px solid var(--border)",
-          borderRadius: 4,
-          fontSize: 11,
-          color: "var(--fg)",
-          background: "var(--input-bg)",
-        }}
-      >
-        {chatSessions.length === 0 ? (
-          <option value="" disabled>{t("llm.noChats")}</option>
-        ) : (
-          chatSessions.map((cs) => (
-            <option key={cs.id} value={cs.id}>{cs.name}</option>
-          ))
-        )}
-      </select>
+      {isRenaming ? (
+        <input
+          ref={renameInputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={handleRenameKeyDown}
+          style={{
+            flex: 1,
+            padding: "2px 6px",
+            border: "2px solid var(--accent)",
+            borderRadius: 4,
+            fontSize: 11,
+            color: "var(--fg)",
+            background: "var(--input-bg)",
+            outline: "none",
+            boxShadow: "0 0 0 2px rgba(201,100,66,0.1)",
+          }}
+        />
+      ) : (
+        <select
+          value={currentChatSessionId || ""}
+          onChange={(e) => e.target.value && selectChatSession(e.target.value)}
+          style={{
+            flex: 1,
+            padding: "2px 6px",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+            fontSize: 11,
+            color: "var(--fg)",
+            background: "var(--input-bg)",
+          }}
+        >
+          {chatSessions.length === 0 ? (
+            <option value="" disabled>{t("llm.noChats")}</option>
+          ) : (
+            chatSessions.map((cs) => (
+              <option key={cs.id} value={cs.id}>{cs.name}</option>
+            ))
+          )}
+        </select>
+      )}
+
+      {isRenaming ? (
+        <>
+          <button
+            onClick={confirmRename}
+            title={t("llm.renameConfirm")}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 22, height: 22, border: "none", background: "transparent",
+              cursor: "pointer", borderRadius: 4, color: "var(--success)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(74,124,89,0.08)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button
+            onClick={cancelRename}
+            title={t("llm.renameCancel")}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 22, height: 22, border: "none", background: "transparent",
+              cursor: "pointer", borderRadius: 4, color: "var(--error)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(181,51,51,0.08)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={startRename}
+          title={t("llm.rename")}
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 22, height: 22, border: "none", background: "transparent",
+            cursor: "pointer", borderRadius: 4, color: "var(--faint)",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; e.currentTarget.style.background = "rgba(201,100,66,0.06)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--faint)"; e.currentTarget.style.background = "transparent"; }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+        </button>
+      )}
 
       <span style={{ fontSize: 10, color: "var(--faint)", whiteSpace: "nowrap" }}>
         {t("llm.tokenCount", { count: totalTokens >= 1000 ? `${(totalTokens / 1000).toFixed(1)}k` : totalTokens })}

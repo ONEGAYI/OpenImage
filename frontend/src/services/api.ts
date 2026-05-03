@@ -266,6 +266,16 @@ export async function listLLMMessages(chatId: string): Promise<LLMMessage[]> {
   return request<LLMMessage[]>(`/api/llm-chats/${chatId}/messages`);
 }
 
+export async function saveInterruptedMessage(
+  chatId: string,
+  data: { content: string; thinking_content: string | null; thinking_duration_ms: number | null },
+): Promise<LLMMessage> {
+  return request<LLMMessage>(`/api/llm-chats/${chatId}/messages/interrupted`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function editLLMMessage(messageId: string, content: string): Promise<void> {
   await request(`/api/llm-messages/${messageId}`, {
     method: "PATCH",

@@ -138,6 +138,12 @@
     "thinking": "Thinking...",
     "thoughtFor": "Thought for {{seconds}}s",
     "scrollToLatest": "Scroll to latest",
-    "blockParseError": "Parse error — check AI output or report to developer"
+    "blockParseError": "Parse error — check AI output or report to developer",
+    "rename": "Rename",
+    "renameConfirm": "Confirm",
+    "renameCancel": "Cancel",
+    "stop": "Stop",
+    "streamingPlaceholder": "AI is responding...",
+    "interrupted": "Generation interrupted"
   }
 }

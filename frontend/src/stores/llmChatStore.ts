@@ -36,7 +36,7 @@ interface LLMChatState {
     attachments?: Array<{ data: string; media_type: string }>,
     formResponse?: Record<string, string>,
   ) => void;
-  cancelStream: () => void;
+  cancelStream: () => Promise<void>;
 }
 
 export const useLLMChatStore = create<LLMChatState>((set, get) => ({
@@ -236,8 +236,14 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
     set({ abortController: controller });
   },
 
-  cancelStream: () => {
-    get().abortController?.abort();
+  cancelStream: async () => {
+    const { streamingText, streamingThinking, currentChatSessionId, abortController } = get();
+
+    const text = streamingText;
+    const thinking = streamingThinking || null;
+
+    // 先中断 + 重置 UI，再异步保存
+    abortController?.abort();
     set({
       streamingText: "",
       streamingThinking: "",
@@ -246,5 +252,19 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
       bufferElapsed: 0,
       abortController: null,
     });
+
+    // 有内容则保存为中断消息
+    if (text.trim() && currentChatSessionId) {
+      try {
+        const saved = await api.saveInterruptedMessage(currentChatSessionId, {
+          content: text,
+          thinking_content: thinking,
+          thinking_duration_ms: null,
+        });
+        set((s) => ({ messages: [...s.messages, saved] }));
+      } catch (e) {
+        console.warn("保存中断消息失败:", e);
+      }
+    }
   },
 }));

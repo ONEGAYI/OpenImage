@@ -1,6 +1,9 @@
+import { useTranslation } from "react-i18next";
 import { AiBlock, LLMMessage } from "../../types";
 import AiBlockRenderer from "./AiBlockRenderer";
 import ThinkingCard from "./ThinkingCard";
+
+const INTERRUPTED_MARKER = "<!-- interrupted -->";
 
 interface Props {
   message: LLMMessage;
@@ -10,6 +13,7 @@ interface Props {
 }
 
 export default function ChatMessage({ message, streamingText, currentAiBlock, streamingThinking }: Props) {
+  const { t } = useTranslation();
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
 
@@ -41,6 +45,8 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
   const thinkingDuration = isStreaming ? null : message.thinking_duration_ms;
 
   const bodyText = isStreaming ? streamingText : message.content;
+  const isInterrupted = !isStreaming && bodyText.includes(INTERRUPTED_MARKER);
+  const displayText = isInterrupted ? bodyText.replace(INTERRUPTED_MARKER, "") : bodyText;
   const showBody = isUser || !!(bodyText || "").trim();
 
   return (
@@ -65,9 +71,26 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
               fontSize: 13,
             }}
           >
-            {bodyText}
+            {displayText}
             {isStreaming && (
               <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
+            )}
+            {isInterrupted && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  marginTop: 6,
+                  paddingTop: 6,
+                  borderTop: "1px solid var(--border-s)",
+                  fontSize: 10,
+                  color: "var(--faint)",
+                }}
+              >
+                <span style={{ display: "inline-block", width: 6, height: 6, borderRadius: "50%", background: "var(--warning, #d4a017)" }} />
+                {t("llm.interrupted")}
+              </div>
             )}
           </div>
         )}
