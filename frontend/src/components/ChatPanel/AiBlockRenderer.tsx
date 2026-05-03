@@ -9,18 +9,20 @@ interface Props {
 /** 规范化 LLM 返回的 ai_block 字段名（LLM 可能用 data 代替 fields/items）。 */
 function normalizeBlock(raw: unknown): AiBlock {
   const r = raw as Record<string, unknown>;
+  const toArray = (v: unknown): unknown[] => Array.isArray(v) ? v : [];
+
   if (r.type === "questions") {
     return {
       type: "questions",
       message: (r.message as string) || "",
-      fields: (r.fields || r.data || []) as AiBlockQuestions["fields"],
+      fields: toArray(r.fields || r.data) as AiBlockQuestions["fields"],
     };
   }
   if (r.type === "suggestions") {
     return {
       type: "suggestions",
       message: (r.message as string) || "",
-      items: (r.items || r.data || []) as AiBlockSuggestions["items"],
+      items: toArray(r.items || r.data) as AiBlockSuggestions["items"],
     };
   }
   return raw as AiBlock;
