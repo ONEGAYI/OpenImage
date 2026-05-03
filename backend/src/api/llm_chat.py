@@ -314,11 +314,17 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     if not session_row:
         raise HTTPException(404, "聊天会话不存在")
 
-    # 保存用户消息（含 token_count）
+    # 保存用户消息（token_count = 前一条累计值 + 本条估算值）
     user_msg_id = _gen_id("lm")
     now = datetime.now(UTC).isoformat()
     attachments_json = json.dumps(body.attachments) if body.attachments else None
-    user_token_count = estimate_tokens(body.content)
+    cursor = await conn.execute(
+        "SELECT token_count FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+        (chat_id,),
+    )
+    prev_row = await cursor.fetchone()
+    prev_token_count = prev_row[0] if prev_row else 0
+    user_token_count = prev_token_count + estimate_tokens(body.content)
     await conn.execute(
         "INSERT INTO llm_messages (id, chat_session_id, role, content, token_count, attachments, created_at) "
         "VALUES (?, ?, 'user', ?, ?, ?, ?)",
