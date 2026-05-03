@@ -24,6 +24,17 @@ def _gen_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
 
+async def _get_prev_cumulative_tokens(conn, chat_id: str) -> int:
+    """获取会话中最后一条未删除消息的累计 token_count。"""
+    cursor = await conn.execute(
+        "SELECT token_count FROM llm_messages "
+        "WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+        (chat_id,),
+    )
+    row = await cursor.fetchone()
+    return row[0] if row else 0
+
+
 # ── Pydantic Models ──
 
 
@@ -100,7 +111,7 @@ async def list_chat_sessions(session_id: str, request: Request):
                 role=role, content=content,
                 thinking_content=thinking,
                 ai_block=json.loads(block) if block else None,
-                saved_token_count=saved_tc,
+                saved_token_count=0,
             )
             cumulative += est
             if cumulative != saved_tc:
@@ -266,12 +277,7 @@ async def save_interrupted_message(chat_id: str, request: Request, body: Interru
         raise HTTPException(404, "Chat session not found")
 
     # 查询前一条消息的累计 token_count
-    cursor = await conn.execute(
-        "SELECT token_count FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
-        (chat_id,),
-    )
-    prev_row = await cursor.fetchone()
-    prev_token_count = prev_row[0] if prev_row else 0
+    prev_token_count = await _get_prev_cumulative_tokens(conn, chat_id)
 
     msg_id = _gen_id("lm")
     content = body.content + "<!-- interrupted -->"
@@ -327,17 +333,12 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     user_msg_id = _gen_id("lm")
     now = datetime.now(UTC).isoformat()
     attachments_json = json.dumps(body.attachments) if body.attachments else None
-    cursor = await conn.execute(
-        "SELECT token_count FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
-        (chat_id,),
-    )
-    prev_row = await cursor.fetchone()
-    prev_token_count = prev_row[0] if prev_row else 0
-    user_token_count = prev_token_count + estimate_tokens(body.content)
+    prev_token_count = await _get_prev_cumulative_tokens(conn, chat_id)
+    user_cumulative = prev_token_count + estimate_tokens(body.content)
     await conn.execute(
         "INSERT INTO llm_messages (id, chat_session_id, role, content, token_count, attachments, created_at) "
         "VALUES (?, ?, 'user', ?, ?, ?, ?)",
-        (user_msg_id, chat_id, body.content, user_token_count, attachments_json, now),
+        (user_msg_id, chat_id, body.content, user_cumulative, attachments_json, now),
     )
     await conn.commit()
 
@@ -435,7 +436,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
             if prompt_tokens + completion_tokens > 0:
                 token_count = prompt_tokens + completion_tokens
             else:
-                token_count = user_token_count + estimate_message_tokens(
+                token_count = user_cumulative + estimate_message_tokens(
                     "assistant", full_text, thinking_content, ai_block_data,
                 )
             ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
