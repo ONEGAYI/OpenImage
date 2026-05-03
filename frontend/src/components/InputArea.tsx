@@ -1,12 +1,15 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
 import { useGenerationStore } from "../stores/generationStore";
+import { useLLMChatStore } from "../stores/llmChatStore";
 import { inpaintImage } from "../services/api";
 import { fileToAttachment } from "../utils/file";
 import type { AttachedFile } from "../types";
 import MaskEditor from "./MaskEditor";
 import RatioSelector from "./RatioSelector";
+import AiToggle from "./AiToggle";
+import ChatPanel from "./ChatPanel";
 
 interface InputAreaProps {
   onOpenSettings?: () => void;
@@ -28,6 +31,10 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
   } = useGenerationStore();
   const sid = activeSessionId ?? "";
   const isThisGenerating = useGenerationStore((s) => s.sessionGenerations[sid]?.isGenerating ?? false);
+  const aiEnabled = useLLMChatStore((s) => s.aiEnabled);
+  const sendMessage = useLLMChatStore((s) => s.sendMessage);
+  const currentChatSessionId = useLLMChatStore((s) => s.currentChatSessionId);
+  const createChatSession = useLLMChatStore((s) => s.createChatSession);
 
   const cancelThisGeneration = useCallback(() => {
     if (sid) useGenerationStore.getState().cancelGeneration(sid);
@@ -70,10 +77,29 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     );
   };
 
+  const handleSend = () => {
+    if (!activeSessionId || !prompt.trim()) return;
+    if (!currentChatSessionId) {
+      createChatSession(activeSessionId).then(() => {
+        useLLMChatStore.getState().sendMessage(prompt.trim());
+      });
+    } else {
+      sendMessage(prompt.trim());
+    }
+    setPrompt("");
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleGenerate();
+    if (aiEnabled) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    } else {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        handleGenerate();
+      }
     }
   };
 
@@ -85,6 +111,12 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     }
   };
 
+  useEffect(() => {
+    const handler = (e: Event) => setPrompt((e as CustomEvent).detail);
+    window.addEventListener("llm:edit-prompt", handler);
+    return () => window.removeEventListener("llm:edit-prompt", handler);
+  }, []);
+
   return (
     <div
       className="border-t flex flex-col gap-2"
@@ -95,6 +127,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         transition: "background 0.3s, border-color 0.3s",
       }}
     >
+      {aiEnabled && <ChatPanel />}
       {error && (
         <div
           className="flex items-center justify-between px-3 py-2 rounded-lg"
@@ -174,8 +207,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           </button>
         )}
         <RatioSelector />
+        <AiToggle />
         <span className="flex-1" />
-        <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>{t("input.ctrlEnterToSend")}</span>
+        {!aiEnabled && <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>{t("input.ctrlEnterToSend")}</span>}
       </div>
 
       <div className="flex gap-2 items-end">
@@ -186,7 +220,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
             onInput={handleTextareaInput}
-            placeholder={activeSessionId ? t("input.placeholder") : t("input.noSessionPlaceholder")}
+            placeholder={activeSessionId ? (aiEnabled ? t("llm.placeholder") : t("input.placeholder")) : t("input.noSessionPlaceholder")}
             disabled={!activeSessionId}
             rows={1}
             className="w-full block border outline-none resize-none transition-all"
@@ -199,7 +233,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
           />
         </div>
-        {isThisGenerating ? (
+        {isThisGenerating && !aiEnabled ? (
           <button
             onClick={cancelThisGeneration}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors cursor-pointer"
@@ -209,7 +243,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           >{t("common.cancel")}</button>
         ) : (
           <button
-            onClick={handleGenerate}
+            onClick={aiEnabled ? handleSend : handleGenerate}
             disabled={!activeSessionId || !prompt.trim()}
             className="rounded-lg text-[13px] font-medium whitespace-nowrap transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ padding: "9px 22px", minHeight: 40, background: "var(--accent)", color: "#faf9f5", border: "1px solid transparent" }}
@@ -225,7 +259,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
               e.currentTarget.style.transform = "translateY(0)";
               e.currentTarget.style.boxShadow = "none";
             }}
-          >{t("input.generate")}</button>
+          >{aiEnabled ? t("llm.send") : t("input.generate")}</button>
         )}
       </div>
 
