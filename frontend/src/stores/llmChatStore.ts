@@ -37,6 +37,7 @@ interface LLMChatState {
     formResponse?: Record<string, string>,
   ) => void;
   cancelStream: () => Promise<void>;
+  deleteLastMessage: () => Promise<void>;
 }
 
 export const useLLMChatStore = create<LLMChatState>((set, get) => ({
@@ -161,11 +162,11 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
           set({ bufferingState: "idle" });
         },
         onUsage: (data) => {
-          const add = data.prompt_tokens + data.completion_tokens;
+          const total = data.prompt_tokens + data.completion_tokens;
           set((s) => ({
             chatSessions: s.chatSessions.map((cs) =>
               cs.id === s.currentChatSessionId
-                ? { ...cs, total_tokens: cs.total_tokens + add }
+                ? { ...cs, total_tokens: total }
                 : cs,
             ),
           }));
@@ -266,5 +267,20 @@ export const useLLMChatStore = create<LLMChatState>((set, get) => ({
         console.warn("保存中断消息失败:", e);
       }
     }
+  },
+
+  deleteLastMessage: async () => {
+    const { currentChatSessionId, messages } = get();
+    if (!currentChatSessionId || messages.length === 0) return;
+
+    const result = await api.deleteLastLLMMessage(currentChatSessionId);
+    set((s) => ({
+      messages: s.messages.slice(0, -1),
+      chatSessions: s.chatSessions.map((cs) =>
+        cs.id === currentChatSessionId
+          ? { ...cs, total_tokens: result.total_tokens }
+          : cs
+      ),
+    }));
   },
 }));
