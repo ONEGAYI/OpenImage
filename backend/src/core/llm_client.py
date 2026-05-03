@@ -25,7 +25,7 @@ class LLMClient:
         supports_vision: bool = False,
         system_prompt: str = "",
     ):
-        self.base_url = base_url.rstrip("/")
+        self.base_url = (base_url or "").rstrip("/")
         self.api_key = api_key
         self.model_name = model_name
         self.supports_vision = supports_vision
@@ -170,9 +170,9 @@ class LLMClient:
         if isinstance(vision_val, str):
             vision_val = vision_val.lower() == "true"
         return cls(
-            base_url=settings.get("llm_base_url", "http://localhost:11434/v1"),
-            api_key=settings.get("llm_api_key", ""),
-            model_name=settings.get("llm_model_name", "llama3.1:8b"),
+            base_url=settings.get("llm_base_url") or "http://localhost:11434/v1",
+            api_key=settings.get("llm_api_key") or "",
+            model_name=settings.get("llm_model_name") or "llama3.1:8b",
             supports_vision=bool(vision_val),
             system_prompt=settings.get("llm_system_prompt", ""),
         )
