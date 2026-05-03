@@ -35,10 +35,11 @@ class InpaintRequest(BaseModel):
 
 def _validate_mask_b64(mask_b64: str) -> None:
     """校验 mask_b64 是否为合法 base64"""
+    import binascii
     try:
         base64.b64decode(mask_b64, validate=True)
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid mask image")
+    except (binascii.Error, ValueError, TypeError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid mask image: {e}")
 
 
 def _inpaint_size_from_source(width: int, height: int, tier: str = "1K") -> str:
@@ -98,6 +99,7 @@ async def inpaint(body: InpaintRequest, request: Request):
 
     async def event_stream():
         try:
+            yield f": {' ' * 1024}\n\n"
             yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
 
             refs = [{"data": r.data, "media_type": r.media_type} for r in body.reference_images] if body.reference_images else None

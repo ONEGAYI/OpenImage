@@ -2,7 +2,6 @@
 import base64
 import json
 import logging
-import uuid
 
 logger = logging.getLogger(__name__)
 from io import BytesIO
@@ -12,7 +11,8 @@ from fastapi.responses import StreamingResponse
 from PIL import Image
 from pydantic import BaseModel
 
-from src.core.client import API_MODE_CHAT
+from src.core.client import API_MODE_RESPONSES, API_MODE_IMAGES
+from src.core.utils import gen_id
 
 router = APIRouter(tags=["generate"])
 
@@ -36,7 +36,7 @@ SIZE_TABLE: dict[str, dict[str, str]] = {
     "9:16": {"1K": "1024x1536", "2K": "1152x2048", "4K": "2160x3840"},
 }
 
-_SUPPORTED_SIZES = frozenset({"1024x1024", "1536x1024", "1024x1536"})
+_SUPPORTED_SIZES = frozenset(v["1K"] for v in SIZE_TABLE.values())
 
 
 def resolve_size(aspect_ratio: str, image_size: str) -> str:
@@ -140,7 +140,7 @@ async def _save_generated_image(
     row = await cursor.fetchone()
     step = row["next_step"]
 
-    img_id = f"img_{uuid.uuid4().hex[:12]}"
+    img_id = gen_id("img")
     relative_path = f"{session_id}/{file_path.name}"
 
     await conn.execute(
@@ -195,6 +195,7 @@ async def generate(body: GenerateRequest, request: Request):
 
     async def event_stream():
         try:
+            yield f": {' ' * 1024}\n\n"
             yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
 
             result = await client.generate(

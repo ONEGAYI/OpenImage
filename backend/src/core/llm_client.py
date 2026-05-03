@@ -30,7 +30,6 @@ class LLMClient:
         self.api_key = api_key
         self.model_name = model_name
         self.supports_vision = supports_vision
-        self.system_prompt = system_prompt
         self._http_client: httpx.AsyncClient | None = None
 
     async def close(self):

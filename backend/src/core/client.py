@@ -2,12 +2,13 @@
 import asyncio
 import base64
 import re
-import uuid
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 from openai import AsyncOpenAI
+
+from src.core.utils import gen_id, normalize_base_url
 
 # 502/503 是网关瞬时抖动，524 是 Cloudflare 超时（可能因负载自愈）
 # 其他 Cloudflare 5xx（520-523/525-527）通常反映配置或协议问题，不重试
@@ -42,13 +43,13 @@ class ImageClient:
         self._openai = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._http = httpx.AsyncClient(timeout=180)
         self._api_key = api_key
-        # 确保 base_url 以 /v1 结尾（OpenAI 兼容 API 的标准路径前缀）
-        raw = (base_url or "https://api.openai.com/v1").rstrip("/")
-        if not raw.endswith("/v1"):
-            raw += "/v1"
-        self._base_url = raw
+        self._base_url = normalize_base_url(base_url)
         self.api_mode = api_mode
         self.model_name = model_name
+
+    async def close(self):
+        await self._http.aclose()
+        await self._openai.close()
 
     @staticmethod
     def _check_response(resp: httpx.Response, endpoint: str) -> None:
@@ -125,7 +126,7 @@ class ImageClient:
         return urls
 
     def _make_response_id(self) -> str:
-        return f"img_{uuid.uuid4().hex[:16]}"
+        return gen_id("img")
 
     # ---- Responses API (OpenAI SDK) ----
 
@@ -152,6 +153,10 @@ class ImageClient:
 
         response = await self._openai.responses.create(**create_kwargs)
 
+        return self._parse_responses_result(response)
+
+    @staticmethod
+    def _parse_responses_result(response) -> GenerateResult:
         image_b64 = ""
         revised_prompt = None
         for output in response.output:
@@ -288,14 +293,17 @@ class ImageClient:
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
+        return await self._parse_chat_image_result(resp, "Chat API")
+
+    async def _parse_chat_image_result(self, resp: httpx.Response, label: str) -> GenerateResult:
         try:
             text = resp.json()["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
-            raise ValueError(f"Chat API 响应格式异常: {resp.text[:500]}")
+            raise ValueError(f"{label} 响应格式异常: {resp.text[:500]}")
 
         urls = self._extract_image_urls(text)
         if not urls:
-            raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
+            raise ValueError(f"未在 {label} 响应中找到图片 URL，响应内容：{text[:300]}")
 
         image_b64 = await self._download_as_b64(urls[0])
 
@@ -318,7 +326,7 @@ class ImageClient:
     ) -> GenerateResult:
         """根据 API 模式路由 inpainting 请求"""
         if self.api_mode == API_MODE_IMAGES:
-            return await self._inpaint_via_images(prompt, source_image_b64, mask_b64, params, reference_images)
+            return await self._inpaint_via_images(prompt, source_image_b64, mask_b64, params)
         if self.api_mode == API_MODE_CHAT:
             return await self._inpaint_via_chat(prompt, source_image_b64, mask_b64, params, reference_images)
         return await self._inpaint_via_responses(prompt, source_image_b64, mask_b64, params, reference_images)
@@ -329,7 +337,6 @@ class ImageClient:
         source_image_b64: str,
         mask_b64: str,
         params: dict[str, Any] | None = None,
-        reference_images: list[dict] | None = None,
     ) -> GenerateResult:
         """Images API 原生 inpainting: POST /v1/images/edits（不支持额外参考图）"""
         source_bytes = base64.b64decode(source_image_b64)
@@ -397,19 +404,7 @@ class ImageClient:
             tools=[tool_config],
         )
 
-        image_b64 = ""
-        revised_prompt = None
-        for output in response.output:
-            if output.type == "image_generation_call":
-                image_b64 = output.result
-                revised_prompt = getattr(output, "revised_prompt", None)
-
-        return GenerateResult(
-            response_id=response.id,
-            image_b64=image_b64,
-            revised_prompt=revised_prompt,
-            total_tokens=response.usage.total_tokens if response.usage else 0,
-        )
+        return self._parse_responses_result(response)
 
     async def _inpaint_via_chat(
         self,
@@ -455,23 +450,7 @@ class ImageClient:
             json=payload,
             headers={"Authorization": f"Bearer {self._api_key}"},
         )
-        try:
-            text = resp.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError):
-            raise ValueError(f"Chat Inpaint API 响应格式异常: {resp.text[:500]}")
-
-        urls = self._extract_image_urls(text)
-        if not urls:
-            raise ValueError(f"未在响应中找到图片 URL，响应内容：{text[:300]}")
-
-        image_b64 = await self._download_as_b64(urls[0])
-
-        return GenerateResult(
-            response_id=self._make_response_id(),
-            image_b64=image_b64,
-            revised_prompt=None,
-            total_tokens=0,
-        )
+        return await self._parse_chat_image_result(resp, "Chat Inpaint API")
 
     async def generate(
         self,

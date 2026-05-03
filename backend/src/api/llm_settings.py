@@ -61,8 +61,7 @@ async def update_llm_settings(request: Request, body: LLMSettingsUpdate):
     old_client = request.app.state.llm_client
     from src.core.llm_client import LLMClient
     request.app.state.llm_client = LLMClient.from_settings(app_settings)
-    if old_client and hasattr(old_client, "close"):
-        import asyncio
-        asyncio.ensure_future(old_client.close())
+    if old_client:
+        await old_client.close()
 
     return await get_llm_settings(request)

@@ -1,7 +1,6 @@
 """LLM 聊天会话 + 消息 API。"""
 import json
 import logging
-import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
@@ -10,6 +9,7 @@ from pydantic import BaseModel
 
 from src.core.llm_prompt import compose_system_prompt
 from src.core.llm_tokenizer import estimate_message_tokens, estimate_tokens
+from src.core.utils import gen_id
 
 DEFAULT_CHAT_NAME = "新对话"
 
@@ -21,7 +21,7 @@ def _db(request: Request):
 
 
 def _gen_id(prefix: str) -> str:
-    return f"{prefix}_{uuid.uuid4().hex[:12]}"
+    return gen_id(prefix)
 
 
 async def _get_prev_cumulative_tokens(conn, chat_id: str) -> int:
@@ -242,6 +242,8 @@ async def delete_message(message_id: str, request: Request):
 
 @router.post("/llm-messages/batch-delete")
 async def batch_delete_messages(request: Request, body: BatchDelete):
+    if len(body.message_ids) > 100:
+        raise HTTPException(400, "Too many message IDs (max 100)")
     db = _db(request)
     conn = db.connection()
     now = datetime.now(UTC).isoformat()
@@ -512,14 +514,10 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             await conn.commit()
 
-            # 查询更新后的会话 token 总量（权威值，覆盖前端增量更新）
-            cursor = await conn.execute("SELECT total_tokens FROM llm_chat_sessions WHERE id = ?", (chat_id,))
-            token_row = await cursor.fetchone()
-
             completed_data = {
                 "message_id": ai_msg_id,
                 "token_count": token_count,
-                "total_tokens": token_row[0] if token_row else 0,
+                "total_tokens": token_count,
             }
             if thinking_content:
                 completed_data["thinking_content"] = thinking_content

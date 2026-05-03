@@ -3,6 +3,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from src.core.client import DEFAULT_API_MODE, DEFAULT_MODEL_NAME
+from src.core.utils import normalize_base_url
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -16,10 +17,7 @@ _ENDPOINT_PATHS = {
 
 
 def _resolve_endpoint(base_url: str | None, api_mode: str) -> str:
-    raw = (base_url or "https://api.openai.com/v1").rstrip("/")
-    if not raw.endswith("/v1"):
-        raw += "/v1"
-    return raw + _ENDPOINT_PATHS.get(api_mode, "")
+    return normalize_base_url(base_url) + _ENDPOINT_PATHS.get(api_mode, "")
 
 
 class SettingsUpdate(BaseModel):
@@ -29,12 +27,15 @@ class SettingsUpdate(BaseModel):
     model_name: str | None = None
 
 
-def _rebuild_client(request: Request):
+async def _rebuild_client(request: Request):
     from src.core.client import ImageClient
 
+    old_client = request.app.state.client
     request.app.state.client = ImageClient.from_settings(
         request.app.state.settings
     )
+    if old_client:
+        await old_client.close()
 
 
 async def _load_settings(db) -> dict:
@@ -54,7 +55,7 @@ async def get_settings(request: Request):
     api_key = settings["api_key"]
     return {
         "api_key_set": api_key is not None,
-        "api_key_preview": f"...{api_key[-4:]}" if api_key else None,
+        "api_key_preview": f"...{api_key[-4:]}" if api_key and len(api_key) > 4 else None,
         "api_key": api_key,
         **{k: settings[k] for k in ("base_url", "api_mode", "model_name")},
         "resolved_endpoint": _resolve_endpoint(settings["base_url"], settings["api_mode"]),
@@ -70,5 +71,5 @@ async def update_settings(body: SettingsUpdate, request: Request):
         if value is not None:
             await db.set_setting(field, value)
             request.app.state.settings[field] = value
-    _rebuild_client(request)
+    await _rebuild_client(request)
     return {"ok": True}

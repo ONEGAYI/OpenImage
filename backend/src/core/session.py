@@ -1,10 +1,10 @@
 # backend/src/core/session.py
-import uuid
 from src.core.database import Database
+from src.core.utils import gen_id
 
 
 def _sess_id() -> str:
-    return f"sess_{uuid.uuid4().hex[:12]}"
+    return gen_id("sess")
 
 
 class SessionManager:
