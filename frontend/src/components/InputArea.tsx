@@ -216,7 +216,6 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
           </button>
         )}
         <RatioSelector />
-        <AiToggle />
         <span className="flex-1" />
         {!aiEnabled && <span className="text-[11px]" style={{ color: "var(--faint)", lineHeight: 1 }}>{t("input.ctrlEnterToSend")}</span>}
       </div>
@@ -234,13 +233,18 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
             rows={1}
             className="w-full block border outline-none resize-none transition-all"
             style={{
-              padding: "9px 14px", background: "var(--input-bg)", borderColor: "var(--border)",
+              padding: "9px 14px 9px 14px",
+              paddingRight: 72,
+              background: "var(--input-bg)", borderColor: "var(--border)",
               borderRadius: "var(--radius-md)", color: "var(--fg)", fontSize: "13.5px", lineHeight: 1.5,
               minHeight: "40px", maxHeight: "100px",
             }}
             onFocus={(e) => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 0 2px rgba(201,100,66,0.1)"; }}
             onBlur={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.boxShadow = "none"; }}
           />
+          <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)" }}>
+            <AiToggle />
+          </div>
         </div>
         {isThisGenerating && !aiEnabled ? (
           <button
