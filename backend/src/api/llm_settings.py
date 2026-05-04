@@ -33,10 +33,7 @@ class LLMSettingsUpdate(BaseModel):
 @router.get("")
 async def get_llm_settings(request: Request):
     db = get_db(request)
-    settings = {}
-    for key in LLM_SETTING_KEYS:
-        val = await db.get_setting(key)
-        settings[key] = val
+    settings = await _load_llm_settings(db)
 
     # API key 脱敏
     api_key = settings.get("llm_api_key")
@@ -67,6 +64,9 @@ async def update_llm_settings(request: Request, body: LLMSettingsUpdate):
     from src.core.llm_client import LLMClient
     request.app.state.llm_client = LLMClient.from_settings(app_settings)
     if old_client:
-        await old_client.close()
+        try:
+            await old_client.close()
+        except Exception:
+            pass
 
     return await get_llm_settings(request)

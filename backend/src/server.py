@@ -1,4 +1,5 @@
 # backend/src/server.py
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -73,21 +74,30 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         app.state.sessions = SessionManager(db)
         app.state.store = ImageStore(config)
 
-        settings = await _load_settings(db)
+        settings, llm_settings = await asyncio.gather(
+            _load_settings(db), _load_llm_settings(db)
+        )
         app.state.settings = settings
         app.state.client = ImageClient.from_settings(settings)
-
-        # LLM 设置
-        llm_settings = await _load_llm_settings(db)
         app.state.llm_settings = llm_settings
         app.state.llm_client = LLMClient.from_settings(llm_settings)
 
-        # 启动时执行一次性数据维护
+        # 启动时并行执行一次性数据维护
         conn = db.connection()
-        await _recalc_token_counts(conn)
-        await _cleanup_deleted_messages(conn)
+        await asyncio.gather(
+            _recalc_token_counts(conn),
+            _cleanup_deleted_messages(conn),
+        )
 
         yield
+
+        # 关闭客户端连接（httpx.AsyncClient / AsyncOpenAI）
+        for client in (app.state.client, app.state.llm_client):
+            if client:
+                try:
+                    await client.close()
+                except Exception:
+                    pass
         await db.close()
 
     app = FastAPI(title="OpenImage", version=APP_VERSION, lifespan=lifespan)

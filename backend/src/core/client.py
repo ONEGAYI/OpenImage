@@ -48,8 +48,14 @@ class ImageClient:
         self.model_name = model_name
 
     async def close(self):
-        await self._http.aclose()
-        await self._openai.close()
+        try:
+            await self._http.aclose()
+        except Exception:
+            pass
+        try:
+            await self._openai.close()
+        except Exception:
+            pass
 
     @staticmethod
     def _check_response(resp: httpx.Response, endpoint: str) -> None:

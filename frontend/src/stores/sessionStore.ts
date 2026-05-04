@@ -41,7 +41,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     try {
       const images = await api.getSessionImages(id);
       set({ images, loading: false });
-    } catch {
+    } catch (e) {
+      console.error("加载会话图片失败:", e);
       set({ loading: false });
     }
   },

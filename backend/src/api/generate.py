@@ -10,7 +10,6 @@ from fastapi.responses import StreamingResponse
 from PIL import Image
 from pydantic import BaseModel
 
-from src.core.client import API_MODE_RESPONSES, API_MODE_IMAGES
 from src.core.sse import SSE_FLUSH, sse_event, sse_error, ERR_GENERATION_FAILED
 from src.core.utils import gen_id
 from src.api.deps import require_api_key, require_session, get_client

@@ -18,10 +18,6 @@ DEFAULT_CHAT_NAME = "新对话"
 router = APIRouter(prefix="/api", tags=["llm-chat"])
 
 
-def _gen_id(prefix: str) -> str:
-    return gen_id(prefix)
-
-
 async def _get_prev_cumulative_tokens(conn, chat_id: str) -> int:
     """获取会话中最后一条未删除消息的累计 token_count。"""
     cursor = await conn.execute(
@@ -64,7 +60,7 @@ async def _save_ai_response(
     completion_tokens: int,
 ) -> tuple[str, int, str | None]:
     """保存 AI 回复并更新 token 统计，返回 (message_id, token_count, session_name)。"""
-    ai_msg_id = _gen_id("lm")
+    ai_msg_id = gen_id("lm")
     if prompt_tokens + completion_tokens > 0:
         token_count = prompt_tokens + completion_tokens
     else:
@@ -154,12 +150,12 @@ async def list_chat_sessions(session_id: str, request: Request):
 async def _recalc_token_counts(conn) -> None:
     """回填 token 数据异常的会话：按累计值语义重算 token_count。"""
     cursor = await conn.execute(
-        "SELECT id FROM llm_chat_sessions",
+        "SELECT id, total_tokens FROM llm_chat_sessions",
     )
     sessions = await cursor.fetchall()
     needs_fix = []
     msg_fixes = []
-    for (session_id,) in sessions:
+    for session_id, saved_total in sessions:
         cursor = await conn.execute(
             "SELECT id, role, content, thinking_content, ai_block, token_count "
             "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
@@ -180,10 +176,7 @@ async def _recalc_token_counts(conn) -> None:
             if cumulative != saved_tc:
                 msg_fixes.append((cumulative, msg[0]))
                 any_updated = True
-        total_tokens_row = await (await conn.execute(
-            "SELECT total_tokens FROM llm_chat_sessions WHERE id = ?", (session_id,),
-        )).fetchone()
-        if any_updated or (total_tokens_row and total_tokens_row[0] != cumulative):
+        if any_updated or saved_total != cumulative:
             needs_fix.append((cumulative, session_id))
     if msg_fixes:
         await conn.executemany("UPDATE llm_messages SET token_count = ? WHERE id = ?", msg_fixes)
@@ -208,7 +201,7 @@ async def _cleanup_deleted_messages(conn) -> None:
 @router.post("/sessions/{session_id}/llm-chats")
 async def create_chat_session(session_id: str, request: Request, body: ChatSessionCreate = None):
     db = get_db(request)
-    chat_id = _gen_id("lc")
+    chat_id = gen_id("lc")
     name = body.name if body else DEFAULT_CHAT_NAME
     now = datetime.now(UTC).isoformat()
 
@@ -384,7 +377,7 @@ async def save_interrupted_message(chat_id: str, request: Request, body: Interru
     # 查询前一条消息的累计 token_count
     prev_token_count = await _get_prev_cumulative_tokens(conn, chat_id)
 
-    msg_id = _gen_id("lm")
+    msg_id = gen_id("lm")
     content = body.content + "<!-- interrupted -->"
     token_count = prev_token_count + estimate_message_tokens("assistant", content, body.thinking_content)
 
@@ -435,7 +428,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
         raise HTTPException(404, "Chat session not found")
 
     # 保存用户消息（token_count = 前一条累计值 + 本条估算值）
-    user_msg_id = _gen_id("lm")
+    user_msg_id = gen_id("lm")
     now = datetime.now(UTC).isoformat()
     attachments_json = json.dumps(body.attachments) if body.attachments else None
     prev_token_count = await _get_prev_cumulative_tokens(conn, chat_id)
