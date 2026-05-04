@@ -30,7 +30,7 @@ try:
 except ImportError:
     BUILD_TIMESTAMP = None
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.6.0"
 FULL_VERSION = f"v{APP_VERSION}-{BUILD_TIMESTAMP}" if BUILD_TIMESTAMP else f"v{APP_VERSION}-dev"
 
 

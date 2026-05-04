@@ -5,6 +5,33 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.6.0] - 2026-05-04
+
+### 新功能
+
+- **LLM 聊天消息管理**：支持删除最后一条消息，完整链路覆盖
+  - 后端：`DELETE /llm-chats/{id}/messages/last` 端点 + 中断消息保存端点 `POST /.../interrupted`
+  - 前端：API 层、Store 层、ChatMessage 悬浮删除按钮、ChatPanel 集成
+
+- **LLM 会话交互增强**：会话更名功能 + 终止生成功能（中断 SSE 流并保存已生成内容）
+
+- **项目文档**：新增中英文 README（README.md + README.en.md），含项目介绍、特性、技术栈、架构概览、开发指南
+
+### Bug 修复
+
+- 修复 ThinkingCard 流式传输时无法展开，以及 ai_block 格式兼容问题
+- 修复 Token 回填幂等性 bug，提取 `_get_prev_cumulative_tokens` 辅助函数确保回填数据一致性
+- 修复前端 `onUsage` token 累加计算错误
+
+### 其他改进
+
+- **Token 计数改为累计值语义**：user/AI/中断消息的 token_count 统一为累计值，list_chat_sessions 回填逻辑同步适配，消除历史数据不一致
+- **前后端代码全面审查与优化**（4 批次）：资源泄漏修复（FastAPI lifespan 客户端清理）、启动流程并行化（asyncio.gather）、数据库 N+1 查询消除、冗余包装函数移除、异常处理增强、前端错误日志添加
+- 删除按钮改用 React state 驱动 opacity/transform 动画，替代直接 DOM 操作
+- 代码审查文档整理至 `docs/review/` 子目录
+- 新增通用组件：Spinner 加载指示器、PopoverArrow 箭头组件、useClickOutside hook
+- 后端新增共享模块：`api/deps.py`（依赖注入）、`core/sse.py`（SSE 辅助）、`core/utils.py`（工具函数）
+
 ## [1.5.0] - 2026-05-03
 
 ### 新功能
@@ -230,12 +257,13 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
-[1.5.0]: https://github.com/user/OpenImage/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/user/OpenImage/compare/v1.3.2...v1.4.0
-[1.3.2]: https://github.com/user/OpenImage/compare/v1.3.1...v1.3.2
-[1.3.1]: https://github.com/user/OpenImage/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/user/OpenImage/compare/v1.2.0...v1.3.0
-[1.2.0]: https://github.com/user/OpenImage/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/user/OpenImage/compare/v1.0.1...v1.1.0
-[1.0.1]: https://github.com/user/OpenImage/compare/v1.0.0...v1.0.1
-[1.0.0]: https://github.com/user/OpenImage/releases/tag/v1.0.0
+[1.6.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.5.0...v1.6.0
+[1.5.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.3.2...v1.4.0
+[1.3.2]: https://github.com/ONEGAYI/OpenImage/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/ONEGAYI/OpenImage/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.2.0...v1.3.0
+[1.2.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/ONEGAYI/OpenImage/compare/v1.0.0...v1.0.1
+[1.0.0]: https://github.com/ONEGAYI/OpenImage/releases/tag/v1.0.0
