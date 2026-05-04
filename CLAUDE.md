@@ -285,6 +285,7 @@ CSS 变量驱动的暖色调双主题（`globals.css`）：
 4. 提交上述更新
 5. 推送到远端：`git push origin main`
 6. 创建 GitHub Release：`gh release create v<版本号> --title "v<版本号> <简述>" --notes "<CHANGELOG 该版本正文>"`
+7. 构建安装包：`python scripts/build.py`，将产物上传至 Release：`gh release upload v<版本号> <安装包路径>`
 
 ## 编码约定
 
