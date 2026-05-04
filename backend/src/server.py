@@ -12,6 +12,8 @@ from src.core.storage import ImageStore
 from src.core.session import SessionManager
 from src.core.client import ImageClient
 from src.api.settings import _load_settings
+from src.api.llm_settings import _load_llm_settings
+from src.api.llm_chat import _recalc_token_counts, _cleanup_deleted_messages
 
 from src.api import sessions as sessions_api
 from src.api import generate as generate_api
@@ -76,12 +78,14 @@ def create_app(base_dir: Path | None = None) -> FastAPI:
         app.state.client = ImageClient.from_settings(settings)
 
         # LLM 设置
-        llm_settings = {}
-        for key in llm_settings_api.LLM_SETTING_KEYS:
-            val = await db.get_setting(key)
-            llm_settings[key] = val
+        llm_settings = await _load_llm_settings(db)
         app.state.llm_settings = llm_settings
         app.state.llm_client = LLMClient.from_settings(llm_settings)
+
+        # 启动时执行一次性数据维护
+        conn = db.connection()
+        await _recalc_token_counts(conn)
+        await _cleanup_deleted_messages(conn)
 
         yield
         await db.close()

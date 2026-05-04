@@ -70,3 +70,12 @@ class SessionManager:
             (response_id, session_id),
         )
         await conn.commit()
+
+    async def get_images(self, session_id: str) -> list[dict]:
+        conn = self._db.connection()
+        cursor = await conn.execute(
+            "SELECT * FROM images WHERE session_id = ? ORDER BY step ASC",
+            (session_id,),
+        )
+        rows = await cursor.fetchall()
+        return [dict(r) for r in rows]

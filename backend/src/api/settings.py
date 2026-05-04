@@ -1,4 +1,6 @@
 # backend/src/api/settings.py
+import asyncio
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
@@ -39,7 +41,8 @@ async def _rebuild_client(request: Request):
 
 
 async def _load_settings(db) -> dict:
-    raw = {key: await db.get_setting(key) for key in _SETTING_FIELDS}
+    values = await asyncio.gather(*(db.get_setting(key) for key in _SETTING_FIELDS))
+    raw = dict(zip(_SETTING_FIELDS, values))
     return {
         "api_key": raw["api_key"],
         "base_url": raw["base_url"],

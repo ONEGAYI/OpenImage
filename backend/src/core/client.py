@@ -524,7 +524,8 @@ class ImageClient:
                     },
                 }
             elif event.type == "response.image_generation_call":
-                response_id = event.id if hasattr(event, "id") else None
+                final_b64 = getattr(event, "result", None)
+                revised_prompt = getattr(event, "revised_prompt", None)
             elif hasattr(event, "response") and hasattr(event.response, "id"):
                 response_id = event.response.id
 

@@ -1,6 +1,5 @@
 # backend/src/api/generate.py
 import base64
-import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -12,7 +11,9 @@ from PIL import Image
 from pydantic import BaseModel
 
 from src.core.client import API_MODE_RESPONSES, API_MODE_IMAGES
+from src.core.sse import SSE_FLUSH, sse_event, sse_error, ERR_GENERATION_FAILED
 from src.core.utils import gen_id
+from src.api.deps import require_api_key, require_session, get_client
 
 router = APIRouter(tags=["generate"])
 
@@ -172,14 +173,8 @@ async def _save_generated_image(
 @router.post("/api/generate")
 async def generate(body: GenerateRequest, request: Request):
     """流式生成图片，返回 SSE"""
-    api_key = request.app.state.settings.get("api_key")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API key not configured")
-
-    sessions = request.app.state.sessions
-    session = await sessions.get(body.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    require_api_key(request)
+    await require_session(request, body.session_id)
 
     previous_response_id, history_image_b64 = await _resolve_previous(
         request, body.session_id, body.fork_from
@@ -190,13 +185,13 @@ async def generate(body: GenerateRequest, request: Request):
         logger.warning("Size '%s' not in supported set %s, API may silently ignore it", params.size, _SUPPORTED_SIZES)
     images = [img.model_dump(exclude_none=True) for img in body.images if img.type == "base64"]
 
-    client = request.app.state.client
+    client = get_client(request)
     history_images = [history_image_b64] if history_image_b64 else None
 
     async def event_stream():
         try:
-            yield f": {' ' * 1024}\n\n"
-            yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
+            yield SSE_FLUSH
+            yield sse_event("generating", {"session_id": body.session_id})
 
             result = await client.generate(
                 prompt=body.prompt,
@@ -217,10 +212,10 @@ async def generate(body: GenerateRequest, request: Request):
                 params=params,
             )
 
-            yield f"event: completed\ndata: {json.dumps(saved)}\n\n"
+            yield sse_event("completed", saved)
 
         except Exception as e:
             logger.exception("Generation failed for session %s", body.session_id)
-            yield f"event: error\ndata: {json.dumps({'code': 'generation_failed', 'message': str(e)})}\n\n"
+            yield sse_error(ERR_GENERATION_FAILED, str(e))
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

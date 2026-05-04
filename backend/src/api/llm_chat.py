@@ -9,15 +9,13 @@ from pydantic import BaseModel
 
 from src.core.llm_prompt import compose_system_prompt
 from src.core.llm_tokenizer import estimate_message_tokens, estimate_tokens
+from src.core.sse import SSE_FLUSH, sse_event, sse_error, ERR_STREAM_ERROR
 from src.core.utils import gen_id
+from src.api.deps import get_db
 
 DEFAULT_CHAT_NAME = "新对话"
 
 router = APIRouter(prefix="/api", tags=["llm-chat"])
-
-
-def _db(request: Request):
-    return request.app.state.db
 
 
 def _gen_id(prefix: str) -> str:
@@ -33,6 +31,63 @@ async def _get_prev_cumulative_tokens(conn, chat_id: str) -> int:
     )
     row = await cursor.fetchone()
     return row[0] if row else 0
+
+
+async def _auto_name_session(conn, chat_id: str) -> str | None:
+    """首次回复后将默认名替换为用户首条消息摘要，返回新名称或 None。"""
+    cursor = await conn.execute(
+        "SELECT content FROM llm_messages "
+        "WHERE chat_session_id = ? AND role = 'user' AND deleted_at IS NULL "
+        "ORDER BY created_at ASC LIMIT 1",
+        (chat_id,),
+    )
+    first_msg = await cursor.fetchone()
+    if not first_msg or not first_msg[0].strip():
+        return None
+    name = first_msg[0].replace("\n", " ").strip()[:30]
+    cursor = await conn.execute(
+        "UPDATE llm_chat_sessions SET name = ? WHERE id = ? AND name = ?",
+        (name, chat_id, DEFAULT_CHAT_NAME),
+    )
+    return name if cursor.rowcount > 0 else None
+
+
+async def _save_ai_response(
+    conn,
+    chat_id: str,
+    full_text: str,
+    ai_block_data: dict | None,
+    thinking_content: str,
+    thinking_duration_ms: int,
+    user_cumulative: int,
+    prompt_tokens: int,
+    completion_tokens: int,
+) -> tuple[str, int, str | None]:
+    """保存 AI 回复并更新 token 统计，返回 (message_id, token_count, session_name)。"""
+    ai_msg_id = _gen_id("lm")
+    if prompt_tokens + completion_tokens > 0:
+        token_count = prompt_tokens + completion_tokens
+    else:
+        token_count = user_cumulative + estimate_message_tokens(
+            "assistant", full_text, thinking_content, ai_block_data,
+        )
+    ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
+    now = datetime.now(UTC).isoformat()
+
+    await conn.execute(
+        "INSERT INTO llm_messages "
+        "(id, chat_session_id, role, content, ai_block, token_count, thinking_content, thinking_duration_ms, created_at) "
+        "VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?)",
+        (ai_msg_id, chat_id, full_text, ai_block_json, token_count,
+         thinking_content or None, thinking_duration_ms or None, now),
+    )
+    await conn.execute(
+        "UPDATE llm_chat_sessions SET total_tokens = ?, updated_at = ? WHERE id = ?",
+        (token_count, now, chat_id),
+    )
+    session_name = await _auto_name_session(conn, chat_id)
+    await conn.commit()
+    return ai_msg_id, token_count, session_name
 
 
 # ── Pydantic Models ──
@@ -77,7 +132,7 @@ class InterruptedMessage(BaseModel):
 
 @router.get("/sessions/{session_id}/llm-chats")
 async def list_chat_sessions(session_id: str, request: Request):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     cursor = await conn.execute(
         "SELECT id, session_id, name, created_at, updated_at, total_tokens "
@@ -93,14 +148,22 @@ async def list_chat_sessions(session_id: str, request: Request):
         for r in rows
     ]
 
-    # 回填 token 数据异常的会话：按累计值语义重算 token_count
+    return results
+
+
+async def _recalc_token_counts(conn) -> None:
+    """回填 token 数据异常的会话：按累计值语义重算 token_count。"""
+    cursor = await conn.execute(
+        "SELECT id FROM llm_chat_sessions",
+    )
+    sessions = await cursor.fetchall()
     needs_fix = []
     msg_fixes = []
-    for r in results:
+    for (session_id,) in sessions:
         cursor = await conn.execute(
             "SELECT id, role, content, thinking_content, ai_block, token_count "
             "FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NULL ORDER BY created_at ASC",
-            (r["id"],),
+            (session_id,),
         )
         msgs = await cursor.fetchall()
         cumulative = 0
@@ -117,21 +180,34 @@ async def list_chat_sessions(session_id: str, request: Request):
             if cumulative != saved_tc:
                 msg_fixes.append((cumulative, msg[0]))
                 any_updated = True
-        if any_updated or r["total_tokens"] != cumulative:
-            r["total_tokens"] = cumulative
-            needs_fix.append((cumulative, r["id"]))
+        total_tokens_row = await (await conn.execute(
+            "SELECT total_tokens FROM llm_chat_sessions WHERE id = ?", (session_id,),
+        )).fetchone()
+        if any_updated or (total_tokens_row and total_tokens_row[0] != cumulative):
+            needs_fix.append((cumulative, session_id))
     if msg_fixes:
         await conn.executemany("UPDATE llm_messages SET token_count = ? WHERE id = ?", msg_fixes)
     if needs_fix:
         await conn.executemany("UPDATE llm_chat_sessions SET total_tokens = ? WHERE id = ?", needs_fix)
         await conn.commit()
 
-    return results
+
+async def _cleanup_deleted_messages(conn) -> None:
+    """清理超过 48h 的软删除记录。"""
+    cutoff = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
+    await conn.execute(
+        "DELETE FROM llm_messages WHERE deleted_at IS NOT NULL AND deleted_at < ?",
+        (cutoff,),
+    )
+    await conn.commit()
+
+
+# ── 聊天会话 CRUD ──
 
 
 @router.post("/sessions/{session_id}/llm-chats")
 async def create_chat_session(session_id: str, request: Request, body: ChatSessionCreate = None):
-    db = _db(request)
+    db = get_db(request)
     chat_id = _gen_id("lc")
     name = body.name if body else DEFAULT_CHAT_NAME
     now = datetime.now(UTC).isoformat()
@@ -151,7 +227,7 @@ async def create_chat_session(session_id: str, request: Request, body: ChatSessi
 
 @router.patch("/llm-chats/{chat_id}")
 async def rename_chat_session(chat_id: str, request: Request, body: ChatSessionRename):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     now = datetime.now(UTC).isoformat()
     await conn.execute(
@@ -162,14 +238,14 @@ async def rename_chat_session(chat_id: str, request: Request, body: ChatSessionR
     cursor = await conn.execute("SELECT * FROM llm_chat_sessions WHERE id = ?", (chat_id,))
     row = await cursor.fetchone()
     if not row:
-        raise HTTPException(404, "聊天会话不存在")
+        raise HTTPException(404, "Chat session not found")
     return {"id": row[0], "session_id": row[1], "name": row[2],
             "created_at": row[3], "updated_at": row[4], "total_tokens": row[5]}
 
 
 @router.delete("/llm-chats/{chat_id}")
 async def delete_chat_session(chat_id: str, request: Request):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     await conn.execute("DELETE FROM llm_messages WHERE chat_session_id = ?", (chat_id,))
     await conn.execute("DELETE FROM llm_chat_sessions WHERE id = ?", (chat_id,))
@@ -182,16 +258,8 @@ async def delete_chat_session(chat_id: str, request: Request):
 
 @router.get("/llm-chats/{chat_id}/messages")
 async def list_messages(chat_id: str, request: Request):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
-
-    # 清理超过 48h 的软删除记录
-    cutoff = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
-    await conn.execute(
-        "DELETE FROM llm_messages WHERE chat_session_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
-        (chat_id, cutoff),
-    )
-    await conn.commit()
 
     cursor = await conn.execute(
         "SELECT id, chat_session_id, role, content, ai_block, token_count, attachments, "
@@ -213,7 +281,7 @@ async def list_messages(chat_id: str, request: Request):
 
 @router.patch("/llm-messages/{message_id}")
 async def edit_message(message_id: str, request: Request, body: MessageEdit):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     await conn.execute(
         "UPDATE llm_messages SET content = ? WHERE id = ?",
@@ -223,13 +291,13 @@ async def edit_message(message_id: str, request: Request, body: MessageEdit):
     cursor = await conn.execute("SELECT * FROM llm_messages WHERE id = ?", (message_id,))
     row = await cursor.fetchone()
     if not row:
-        raise HTTPException(404, "消息不存在")
+        raise HTTPException(404, "Message not found")
     return {"id": row[0], "content": row[3]}
 
 
 @router.delete("/llm-messages/{message_id}")
 async def delete_message(message_id: str, request: Request):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     now = datetime.now(UTC).isoformat()
     await conn.execute(
@@ -244,7 +312,7 @@ async def delete_message(message_id: str, request: Request):
 async def batch_delete_messages(request: Request, body: BatchDelete):
     if len(body.message_ids) > 100:
         raise HTTPException(400, "Too many message IDs (max 100)")
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     now = datetime.now(UTC).isoformat()
     placeholders = ",".join("?" for _ in body.message_ids)
@@ -258,7 +326,7 @@ async def batch_delete_messages(request: Request, body: BatchDelete):
 
 @router.post("/llm-messages/{message_id}/undo-delete")
 async def undo_delete_message(message_id: str, request: Request):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     await conn.execute(
         "UPDATE llm_messages SET deleted_at = NULL WHERE id = ?",
@@ -271,7 +339,7 @@ async def undo_delete_message(message_id: str, request: Request):
 @router.delete("/llm-chats/{chat_id}/messages/last")
 async def delete_last_message(chat_id: str, request: Request):
     """删除指定会话的最后一条未删除消息，更新 token 统计。"""
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
 
     # 查询最后一条未删除消息
@@ -282,7 +350,7 @@ async def delete_last_message(chat_id: str, request: Request):
     )
     last_msg = await cursor.fetchone()
     if not last_msg:
-        raise HTTPException(404, "没有可删除的消息")
+        raise HTTPException(404, "No messages to delete")
 
     # 软删除
     now = datetime.now(UTC).isoformat()
@@ -306,7 +374,7 @@ async def delete_last_message(chat_id: str, request: Request):
 @router.post("/llm-chats/{chat_id}/messages/interrupted")
 async def save_interrupted_message(chat_id: str, request: Request, body: InterruptedMessage):
     """保存中断生成后的部分消息。"""
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
 
     cursor = await conn.execute("SELECT id FROM llm_chat_sessions WHERE id = ?", (chat_id,))
@@ -356,7 +424,7 @@ async def save_interrupted_message(chat_id: str, request: Request, body: Interru
 
 @router.post("/llm-chats/{chat_id}/chat")
 async def chat(chat_id: str, request: Request, body: ChatRequest):
-    db = _db(request)
+    db = get_db(request)
     conn = db.connection()
     llm_client = request.app.state.llm_client
 
@@ -364,7 +432,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     cursor = await conn.execute("SELECT session_id FROM llm_chat_sessions WHERE id = ?", (chat_id,))
     session_row = await cursor.fetchone()
     if not session_row:
-        raise HTTPException(404, "聊天会话不存在")
+        raise HTTPException(404, "Chat session not found")
 
     # 保存用户消息（token_count = 前一条累计值 + 本条估算值）
     user_msg_id = _gen_id("lm")
@@ -430,8 +498,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
     )
 
     async def event_generator():
-        # 发送 SSE 注释撑破代理/TCP 初始缓冲，强制立即 flush
-        yield f": {' ' * 1024}\n\n"
+        yield SSE_FLUSH
 
         full_text = ""
         ai_block_data = None
@@ -459,7 +526,7 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                     thinking_duration_ms = event.data.get("thinking_duration_ms", 0)
                     continue  # 不转发 llm_client 的 completed，由后面保存完的 completed 取代
 
-                yield f"event: {event.type}\ndata: {json.dumps(event.data, ensure_ascii=False)}\n\n"
+                yield sse_event(event.type, event.data)
 
                 if event.type == "error":
                     log.error("LLM 流式错误: %s", event.data)
@@ -467,52 +534,11 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
 
             log.debug("流结束 full_text=%dchars", len(full_text))
 
-            # 保存 AI 回复（token_count = 累计值）
-            ai_msg_id = _gen_id("lm")
-            # 有 API usage 时直接赋值（已包含全部历史），无 usage 时用前一条累计值 + 估算
-            if prompt_tokens + completion_tokens > 0:
-                token_count = prompt_tokens + completion_tokens
-            else:
-                token_count = user_cumulative + estimate_message_tokens(
-                    "assistant", full_text, thinking_content, ai_block_data,
-                )
-            ai_block_json = json.dumps(ai_block_data, ensure_ascii=False) if ai_block_data else None
-
-            await conn.execute(
-                "INSERT INTO llm_messages "
-                "(id, chat_session_id, role, content, ai_block, token_count, thinking_content, thinking_duration_ms, created_at) "
-                "VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?)",
-                (ai_msg_id, chat_id, full_text, ai_block_json, token_count,
-                 thinking_content or None, thinking_duration_ms or None,
-                 datetime.now(UTC).isoformat()),
+            ai_msg_id, token_count, session_name = await _save_ai_response(
+                conn, chat_id, full_text, ai_block_data,
+                thinking_content, thinking_duration_ms,
+                user_cumulative, prompt_tokens, completion_tokens,
             )
-
-            # 更新会话 token 统计（直接赋值，不再增量累加）
-            now = datetime.now(UTC).isoformat()
-            await conn.execute(
-                "UPDATE llm_chat_sessions SET total_tokens = ?, updated_at = ? WHERE id = ?",
-                (token_count, now, chat_id),
-            )
-
-            # 自动命名：首次回复后将默认名替换为用户首条消息摘要
-            session_name = None
-            cursor = await conn.execute(
-                "SELECT content FROM llm_messages "
-                "WHERE chat_session_id = ? AND role = 'user' AND deleted_at IS NULL "
-                "ORDER BY created_at ASC LIMIT 1",
-                (chat_id,),
-            )
-            first_msg = await cursor.fetchone()
-            if first_msg and first_msg[0].strip():
-                name = first_msg[0].replace("\n", " ").strip()[:30]
-                cursor = await conn.execute(
-                    "UPDATE llm_chat_sessions SET name = ? WHERE id = ? AND name = ?",
-                    (name, chat_id, DEFAULT_CHAT_NAME),
-                )
-                if cursor.rowcount > 0:
-                    session_name = name
-
-            await conn.commit()
 
             completed_data = {
                 "message_id": ai_msg_id,
@@ -524,10 +550,10 @@ async def chat(chat_id: str, request: Request, body: ChatRequest):
                 completed_data["thinking_duration_ms"] = thinking_duration_ms
             if session_name:
                 completed_data["session_name"] = session_name
-            yield f'event: completed\ndata: {json.dumps(completed_data, ensure_ascii=False)}\n\n'
+            yield sse_event("completed", completed_data)
 
         except Exception as e:
-            yield f'event: error\ndata: {json.dumps({"code": "stream_error", "message": str(e)}, ensure_ascii=False)}\n\n'
+            yield sse_error(ERR_STREAM_ERROR, str(e))
 
     return StreamingResponse(
         event_generator(),

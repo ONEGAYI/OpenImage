@@ -7,12 +7,30 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from contextlib import asynccontextmanager
+
 from src.core.config import get_base_dir
 
 app = typer.Typer(name="openimage", help="OpenImage - GPT Image 2 客户端")
 sessions_app = typer.Typer(help="会话管理")
 app.add_typer(sessions_app, name="sessions")
 console = Console()
+
+
+@asynccontextmanager
+async def _managed_db():
+    """CLI 命令共享的数据库初始化/清理上下文管理器。"""
+    from src.core.config import Config
+    from src.core.database import Database
+
+    config = Config(get_base_dir())
+    config.ensure_dirs()
+    db = Database(config)
+    await db.initialize()
+    try:
+        yield db
+    finally:
+        await db.close()
 
 
 def _version_callback(value: bool):
@@ -130,32 +148,25 @@ def generate(
 ):
     """单次文生图"""
     import base64
-    from src.core.config import Config
-    from src.core.database import Database
 
     async def _run():
         _validate_size(size)
-        config = Config(get_base_dir())
-        config.ensure_dirs()
-        db = Database(config)
-        await db.initialize()
+        async with _managed_db() as db:
+            client = await _load_client(db)
+            console.print(f"[yellow]Generating: {prompt}...[/yellow]")
 
-        client = await _load_client(db)
-        console.print(f"[yellow]Generating: {prompt}...[/yellow]")
+            async def _do():
+                result = await client.generate(
+                    prompt=prompt,
+                    images=[],
+                    previous_response_id=None,
+                    params={"size": size, "quality": quality, "output_format": "png"},
+                )
+                image_data = base64.b64decode(result.image_b64)
+                Path(output).write_bytes(image_data)
+                console.print(f"[green]Saved to {output} ({len(image_data)} bytes)[/green]")
 
-        async def _do():
-            result = await client.generate(
-                prompt=prompt,
-                images=[],
-                previous_response_id=None,
-                params={"size": size, "quality": quality, "output_format": "png"},
-            )
-            image_data = base64.b64decode(result.image_b64)
-            Path(output).write_bytes(image_data)
-            console.print(f"[green]Saved to {output} ({len(image_data)} bytes)[/green]")
-
-        await _retry(_do, "生成")
-        await db.close()
+            await _retry(_do, "生成")
 
     asyncio.run(_run())
 
@@ -170,41 +181,34 @@ def edit(
 ):
     """图生图 / 多图融合"""
     import base64
-    from src.core.config import Config
-    from src.core.database import Database
 
     async def _run():
         _validate_size(size)
-        config = Config(get_base_dir())
-        config.ensure_dirs()
-        db = Database(config)
-        await db.initialize()
+        async with _managed_db() as db:
+            client = await _load_client(db)
 
-        client = await _load_client(db)
+            images = []
+            for path in image:
+                data = Path(path).read_bytes()
+                b64 = base64.b64encode(data).decode()
+                ext = Path(path).suffix.lstrip(".")
+                media = f"image/{ext}" if ext != "jpg" else "image/jpeg"
+                images.append({"type": "base64", "data": b64, "media_type": media})
 
-        images = []
-        for path in image:
-            data = Path(path).read_bytes()
-            b64 = base64.b64encode(data).decode()
-            ext = Path(path).suffix.lstrip(".")
-            media = f"image/{ext}" if ext != "jpg" else "image/jpeg"
-            images.append({"type": "base64", "data": b64, "media_type": media})
+            console.print(f"[yellow]Editing with {len(images)} image(s)...[/yellow]")
 
-        console.print(f"[yellow]Editing with {len(images)} image(s)...[/yellow]")
+            async def _do():
+                result = await client.generate(
+                    prompt=prompt,
+                    images=images,
+                    previous_response_id=None,
+                    params={"size": size, "quality": quality, "output_format": "png"},
+                )
+                out_data = base64.b64decode(result.image_b64)
+                Path(output).write_bytes(out_data)
+                console.print(f"[green]Saved to {output}[/green]")
 
-        async def _do():
-            result = await client.generate(
-                prompt=prompt,
-                images=images,
-                previous_response_id=None,
-                params={"size": size, "quality": quality, "output_format": "png"},
-            )
-            out_data = base64.b64decode(result.image_b64)
-            Path(output).write_bytes(out_data)
-            console.print(f"[green]Saved to {output}[/green]")
-
-        await _retry(_do, "编辑")
-        await db.close()
+            await _retry(_do, "编辑")
 
     asyncio.run(_run())
 
@@ -212,22 +216,16 @@ def edit(
 @sessions_app.command("list")
 def sessions_list():
     """列出所有会话"""
-    from src.core.config import Config
-    from src.core.database import Database
     from src.core.session import SessionManager
 
     async def _run():
-        config = Config(get_base_dir())
-        config.ensure_dirs()
-        db = Database(config)
-        await db.initialize()
-        sm = SessionManager(db)
-        sessions = await sm.list_all()
-        for s in sessions:
-            console.print(f"  {s['id']}  {s['name']}  {s['updated_at']}")
-        if not sessions:
-            console.print("[dim]No sessions[/dim]")
-        await db.close()
+        async with _managed_db() as db:
+            sm = SessionManager(db)
+            sessions = await sm.list_all()
+            for s in sessions:
+                console.print(f"  {s['id']}  {s['name']}  {s['updated_at']}")
+            if not sessions:
+                console.print("[dim]No sessions[/dim]")
 
     asyncio.run(_run())
 
@@ -239,18 +237,11 @@ def config(
     value: str = typer.Argument(help="配置值"),
 ):
     """管理配置项"""
-    from src.core.config import Config as AppConfig
-    from src.core.database import Database
-
     async def _run():
-        cfg = AppConfig(get_base_dir())
-        cfg.ensure_dirs()
-        db = Database(cfg)
-        await db.initialize()
-        if action == "set":
-            await db.set_setting(key, value)
-            console.print(f"[green]Set {key}[/green]")
-        await db.close()
+        async with _managed_db() as db:
+            if action == "set":
+                await db.set_setting(key, value)
+                console.print(f"[green]Set {key}[/green]")
 
     asyncio.run(_run())
 

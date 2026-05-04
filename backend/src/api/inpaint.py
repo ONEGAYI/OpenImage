@@ -1,5 +1,4 @@
 import base64
-import json
 from io import BytesIO
 
 from fastapi import APIRouter, HTTPException, Request
@@ -14,6 +13,8 @@ from src.api.generate import (
     resolve_size,
     detect_closest_ratio,
 )
+from src.core.sse import SSE_FLUSH, sse_event, sse_error, ERR_INPAINT_FAILED
+from src.api.deps import require_api_key, require_session, get_client
 
 router = APIRouter(tags=["inpaint"])
 
@@ -58,14 +59,8 @@ async def inpaint(body: InpaintRequest, request: Request):
             detail="Must provide either source_image_id or source_image_b64",
         )
 
-    api_key = request.app.state.settings.get("api_key")
-    if not api_key:
-        raise HTTPException(status_code=400, detail="API key not configured")
-
-    sessions = request.app.state.sessions
-    session = await sessions.get(body.session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    require_api_key(request)
+    await require_session(request, body.session_id)
 
     _validate_mask_b64(body.mask_b64)
 
@@ -95,12 +90,12 @@ async def inpaint(body: InpaintRequest, request: Request):
     del source_data
     source_img.close()
 
-    client = request.app.state.client
+    client = get_client(request)
 
     async def event_stream():
         try:
-            yield f": {' ' * 1024}\n\n"
-            yield f"event: generating\ndata: {json.dumps({'session_id': body.session_id})}\n\n"
+            yield SSE_FLUSH
+            yield sse_event("generating", {"session_id": body.session_id})
 
             refs = [{"data": r.data, "media_type": r.media_type} for r in body.reference_images] if body.reference_images else None
 
@@ -126,9 +121,9 @@ async def inpaint(body: InpaintRequest, request: Request):
                 params=params,
             )
 
-            yield f"event: completed\ndata: {json.dumps(saved)}\n\n"
+            yield sse_event("completed", saved)
 
         except Exception as e:
-            yield f"event: error\ndata: {json.dumps({'code': 'inpaint_failed', 'message': str(e)})}\n\n"
+            yield sse_error(ERR_INPAINT_FAILED, str(e))
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

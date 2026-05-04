@@ -1,6 +1,10 @@
 """LLM 设置 API — 独立于图片生成 API 配置。"""
+import asyncio
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
+
+from src.api.deps import get_db
 
 router = APIRouter(prefix="/api/llm-settings", tags=["llm-settings"])
 
@@ -13,6 +17,11 @@ LLM_SETTING_KEYS = [
 ]
 
 
+async def _load_llm_settings(db) -> dict:
+    values = await asyncio.gather(*(db.get_setting(key) for key in LLM_SETTING_KEYS))
+    return dict(zip(LLM_SETTING_KEYS, values))
+
+
 class LLMSettingsUpdate(BaseModel):
     llm_api_key: str | None = None
     llm_base_url: str | None = None
@@ -21,13 +30,9 @@ class LLMSettingsUpdate(BaseModel):
     llm_system_prompt: str | None = None
 
 
-def _db(request: Request):
-    return request.app.state.db
-
-
 @router.get("")
 async def get_llm_settings(request: Request):
-    db = _db(request)
+    db = get_db(request)
     settings = {}
     for key in LLM_SETTING_KEYS:
         val = await db.get_setting(key)
@@ -46,7 +51,7 @@ async def get_llm_settings(request: Request):
 
 @router.patch("")
 async def update_llm_settings(request: Request, body: LLMSettingsUpdate):
-    db = _db(request)
+    db = get_db(request)
     updates = body.model_dump(exclude_none=True)
 
     for key, value in updates.items():

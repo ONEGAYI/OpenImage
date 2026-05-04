@@ -55,14 +55,7 @@ async def get_session_images(session_id: str, request: Request):
     session = await sm.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    db = request.app.state.db
-    conn = db.connection()
-    cursor = await conn.execute(
-        "SELECT * FROM images WHERE session_id = ? ORDER BY step ASC",
-        (session_id,),
-    )
-    rows = await cursor.fetchall()
-    return [dict(r) for r in rows]
+    return await sm.get_images(session_id)
 
 
 @router.delete("/{session_id}")
