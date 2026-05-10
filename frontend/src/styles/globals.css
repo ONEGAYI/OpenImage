@@ -1,5 +1,4 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap&font-display=swap');
-@import url('https://cdn.jsdelivr.net/npm/katex@0.16/dist/katex.min.css');
 @import "tailwindcss";
 
 @keyframes spin {

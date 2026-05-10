@@ -39,6 +39,13 @@
 .md-renderer ol {
   margin: 0.3em 0;
   padding-left: 1.5em;
+  list-style-position: outside;
+}
+.md-renderer ul {
+  list-style-type: disc;
+}
+.md-renderer ol {
+  list-style-type: decimal;
 }
 .md-renderer li {
   margin: 0.15em 0;
@@ -123,8 +130,13 @@
 
 /* 图片 */
 .md-renderer img {
-  max-width: 100%;
   border-radius: var(--radius-sm);
+}
+
+/* 链接 */
+.md-renderer a {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 /* KaTeX 块级公式居中 */
