@@ -110,21 +110,21 @@ python -m src.cli config set api_key <your-key>
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                   Tauri 桌面壳 (Rust)                │
+│                   Tauri 桌面壳 (Rust)               │
 │    启动 sidecar → 健康检查 → 就绪信号 → 退出清理      │
 ├─────────────────────────────────────────────────────┤
-│              React 前端 (Vite + TS)                  │
+│              React 前端 (Vite + TS)                 │
 │   Sidebar │ Gallery │ DetailPanel │ ChatPanel       │
-│   Zustand Stores │ i18n │ CSS Variables              │
+│   Zustand Stores │ i18n │ CSS Variables             │
 ├──────────────────────┬──────────────────────────────┤
 │  FastAPI 后端        │  SSE 流式                     │
-│  ├─ api/ 路由层      │  ├─ /api/generate             │
-│  ├─ core/ 业务层     │  ├─ /api/inpaint              │
+│  ├─ api/ 路由层      │  ├─ /api/generate            │
+│  ├─ core/ 业务层     │  ├─ /api/inpaint             │
 │  │  ├─ ImageClient   │  └─ /api/llm/.../messages    │
-│  │  ├─ LLMClient     │                               │
-│  │  ├─ SessionManager│  SQLite (aiosqlite)           │
-│  │  └─ Skills        │  5 张数据表                    │
-│  └─ server.py 工厂   │                               │
+│  │  ├─ LLMClient     │                              │
+│  │  ├─ SessionManager│  SQLite (aiosqlite)          │
+│  │  └─ Skills        │  5 张数据表                   │
+│  └─ server.py 工厂   │                              │
 └──────────────────────┴──────────────────────────────┘
 ```
 

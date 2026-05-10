@@ -5,6 +5,26 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.7.0] - 2026-05-10
+
+### 新功能
+
+- **AI 聊天消息 Markdown + LaTeX 渲染**：AI 助手回复从纯文本升级为富文本格式化渲染（PR #2）
+  - 新增 `MarkdownRenderer` 组件，支持 GFM 扩展语法（表格、删除线、任务列表）、代码块语法高亮（11 种常用语言按需注册）、KaTeX 数学公式
+  - 流式输出期间保持纯文本，完成后切换 Markdown 渲染，避免不完整语法闪烁
+  - CSS 样式使用项目 CSS 变量，深浅主题自动适配
+  - `React.memo` 包裹 + 插件/组件提升为模块级常量，避免不必要重渲染
+
+- **Images API 参数扩展**：适配 gpt-image-2 新文档，支持 quality/input_fidelity/moderation 参数透传（PR #1）
+  - 后端 `_PARAM_KEYS` 和 `GenerateParams` 新增 `input_fidelity`、`moderation` 字段
+  - 前端 RatioSelector 新增 Quality（auto/low/medium/high）和 Moderation（auto/low）选择区段
+  - Popover 改为 `createPortal` 渲染到 document.body，避免溢出裁剪
+  - `quality` 默认值从 `high` 改为 `auto`（与 API 文档一致）
+
+### 其他改进
+
+- 新增 PR Agent CI 自动审查（`.github/workflows/pr-agent.yml` + `.pr_agent.toml`）
+
 ## [1.6.0] - 2026-05-04
 
 ### 新功能
@@ -257,6 +277,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.7.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.3.2...v1.4.0

@@ -109,23 +109,23 @@ python -m src.cli config set api_key <your-key>
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  Tauri Shell (Rust)                  │
-│   Start sidecar → Health check → Ready signal → Cleanup │
-├─────────────────────────────────────────────────────┤
-│              React Frontend (Vite + TS)              │
-│   Sidebar │ Gallery │ DetailPanel │ ChatPanel       │
-│   Zustand Stores │ i18n │ CSS Variables              │
-├──────────────────────┬──────────────────────────────┤
-│  FastAPI Backend     │  SSE Streaming                │
-│  ├─ api/ Routes      │  ├─ /api/generate             │
-│  ├─ core/ Business   │  ├─ /api/inpaint              │
-│  │  ├─ ImageClient   │  └─ /api/llm/.../messages    │
-│  │  ├─ LLMClient     │                               │
-│  │  ├─ SessionManager│  SQLite (aiosqlite)           │
-│  │  └─ Skills        │  5 database tables            │
-│  └─ server.py Factory│                               │
-└──────────────────────┴──────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                  Tauri Shell (Rust)                    │
+│   Start sidecar → Health check → Ready signal → Cleanup│
+├────────────────────────────────────────────────────────┤
+│              React Frontend (Vite + TS)                │
+│   Sidebar │ Gallery │ DetailPanel │ ChatPanel          │
+│   Zustand Stores │ i18n │ CSS Variables                │
+├──────────────────────┬─────────────────────────────────┤
+│  FastAPI Backend     │  SSE Streaming                  │
+│  ├─ api/ Routes      │  ├─ /api/generate               │
+│  ├─ core/ Business   │  ├─ /api/inpaint                │
+│  │  ├─ ImageClient   │  └─ /api/llm/.../messages       │
+│  │  ├─ LLMClient     │                                 │
+│  │  ├─ SessionManager│  SQLite (aiosqlite)             │
+│  │  └─ Skills        │  5 database tables              │
+│  └─ server.py Factory│                                 │
+└──────────────────────┴─────────────────────────────────┘
 ```
 
 **Data flow**: Frontend SSE request → FastAPI route → Core business layer (client/session/storage) → OpenAI API → SSE event stream → Frontend real-time rendering
