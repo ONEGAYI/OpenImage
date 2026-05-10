@@ -1,5 +1,8 @@
 # backend/src/core/session.py
+from __future__ import annotations
+
 from src.core.database import Database
+from src.core.storage import ImageStore
 from src.core.utils import gen_id
 
 
@@ -79,3 +82,65 @@ class SessionManager:
         )
         rows = await cursor.fetchall()
         return [dict(r) for r in rows]
+
+    async def fork(self, store: ImageStore, session_id: str, image_id: str) -> dict:
+        """Fork 会话：创建新 session 并拷贝目标图片及之前所有图片"""
+        conn = self._db.connection()
+
+        cursor = await conn.execute(
+            "SELECT * FROM images WHERE id = ? AND session_id = ?",
+            (image_id, session_id),
+        )
+        target = await cursor.fetchone()
+        if not target:
+            raise ValueError("Image not found")
+
+        target_step = target["step"]
+        target_response_id = target["response_id"]
+
+        src_session = await self.get(session_id)
+        base_name = src_session["name"]
+        cursor = await conn.execute(
+            "SELECT name FROM sessions WHERE name LIKE ?",
+            (f"{base_name} (Fork #%)",),
+        )
+        fork_rows = await cursor.fetchall()
+        next_num = len(fork_rows) + 1
+        fork_name = f"{base_name} (Fork #{next_num})"
+
+        fork_id = _sess_id()
+        await conn.execute(
+            "INSERT INTO sessions (id, name, head_response_id) VALUES (?, ?, ?)",
+            (fork_id, fork_name, target_response_id),
+        )
+        await conn.commit()
+
+        cursor = await conn.execute(
+            "SELECT * FROM images WHERE session_id = ? AND step <= ? ORDER BY step ASC",
+            (session_id, target_step),
+        )
+        rows = await cursor.fetchall()
+
+        file_names = []
+        for row in rows:
+            file_names.append(row["file_path"].split("/", 1)[1] if "/" in row["file_path"] else row["file_path"])
+        store.copy_session_images(session_id, fork_id, file_names)
+
+        for row in rows:
+            new_img_id = gen_id("img")
+            orig_file_name = row["file_path"].split("/", 1)[1] if "/" in row["file_path"] else row["file_path"]
+            new_file_path = f"{fork_id}/{orig_file_name}"
+            await conn.execute(
+                """INSERT INTO images
+                (id, session_id, step, response_id, prompt, revised_prompt,
+                 parent_image_id, file_path, size, quality, output_format)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    new_img_id, fork_id, row["step"], row["response_id"],
+                    row["prompt"], row["revised_prompt"], row["parent_image_id"],
+                    new_file_path, row["size"], row["quality"], row["output_format"],
+                ),
+            )
+        await conn.commit()
+
+        return await self.get(fork_id)
