@@ -41,7 +41,6 @@ export interface GenerateRequest {
   session_id: string;
   prompt: string;
   images?: ImageInput[];
-  fork_from?: string;
   params?: GenerateParams;
 }
 
