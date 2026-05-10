@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { useGenerationStore, RATIO_OPTIONS, SIZE_OPTIONS } from "../stores/generationStore";
+import { useGenerationStore, RATIO_OPTIONS, SIZE_OPTIONS, QUALITY_OPTIONS, MODERATION_OPTIONS } from "../stores/generationStore";
 import PopoverArrow from "./PopoverArrow";
-import { useClickOutside } from "../hooks/useClickOutside";
 
 const RATIO_ICONS: Record<string, { w: number; h: number }> = {
   "1:1": { w: 20, h: 20 },
@@ -44,12 +44,46 @@ function labelStyle(selected: boolean): React.CSSProperties {
 
 export default function RatioSelector() {
   const { t } = useTranslation();
-  const { aspectRatio, imageSize, setAspectRatio, setImageSize } = useGenerationStore();
+  const { aspectRatio, imageSize, quality, moderation, setAspectRatio, setImageSize, setQuality, setModeration } = useGenerationStore();
   const [open, setOpen] = useState(false);
-  const closePopover = useCallback(() => setOpen(false), []);
-  const containerRef = useClickOutside(open, closePopover);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
-  const isCustom = aspectRatio !== "1:1" || imageSize !== "1K";
+  const closePopover = useCallback(() => setOpen(false), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        triggerRef.current?.contains(target) ||
+        popoverRef.current?.contains(target)
+      ) return;
+      closePopover();
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, closePopover]);
+
+  const getPopoverStyle = (): React.CSSProperties => {
+    const el = triggerRef.current;
+    if (!el) return { display: "none" };
+    const rect = el.getBoundingClientRect();
+    return {
+      position: "fixed",
+      bottom: window.innerHeight - rect.top + 10,
+      left: rect.left + rect.width / 2 - 140,
+      width: 280,
+      background: "var(--surface)",
+      border: "1px solid var(--border)",
+      borderRadius: "var(--radius-md)",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+      padding: 14,
+      zIndex: 9999,
+    };
+  };
+
+  const isCustom = aspectRatio !== "1:1" || imageSize !== "1K" || quality !== "auto" || moderation !== "auto";
 
   const buttonBase: React.CSSProperties = {
     display: "flex",
@@ -89,8 +123,9 @@ export default function RatioSelector() {
   };
 
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <div style={{ position: "relative" }}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         style={{
           ...buttonBase,
@@ -118,23 +153,9 @@ export default function RatioSelector() {
         {aspectRatio} · {imageSize}
       </button>
 
-      {open && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "calc(100% + 10px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 240,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-md)",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
-            padding: 14,
-            zIndex: 50,
-          }}
-        >
-<PopoverArrow position="bottom" />
+      {open && createPortal(
+        <div ref={popoverRef} style={getPopoverStyle()}>
+          <PopoverArrow position="top" />
 
           <div style={{ marginBottom: 12 }}>
             <div style={sectionLabelStyle}>{t("ratio.ratio")}</div>
@@ -167,7 +188,7 @@ export default function RatioSelector() {
             }}
           />
 
-          <div>
+          <div style={{ marginBottom: 12 }}>
             <div style={sectionLabelStyle}>{t("ratio.size")}</div>
             <div style={{ display: "flex", gap: 6 }}>
               {SIZE_OPTIONS.map((tier) => {
@@ -190,7 +211,70 @@ export default function RatioSelector() {
               })}
             </div>
           </div>
-        </div>
+
+          <div
+            style={{
+              height: 1,
+              background: "var(--border)",
+              margin: "0 -14px 12px",
+            }}
+          />
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={sectionLabelStyle}>{t("ratio.quality")}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {QUALITY_OPTIONS.map((q) => {
+                const selected = quality === q;
+                return (
+                  <button
+                    key={q}
+                    onClick={() => setQuality(q)}
+                    style={{
+                      ...optionBtn(selected),
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      padding: "8px 0",
+                    }}
+                  >
+                    {q}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            style={{
+              height: 1,
+              background: "var(--border)",
+              margin: "0 -14px 12px",
+            }}
+          />
+
+          <div>
+            <div style={sectionLabelStyle}>{t("ratio.moderation")}</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {MODERATION_OPTIONS.map((m) => {
+                const selected = moderation === m;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setModeration(m)}
+                    style={{
+                      ...optionBtn(selected),
+                      flexDirection: "row",
+                      justifyContent: "center",
+                      padding: "8px 0",
+                    }}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

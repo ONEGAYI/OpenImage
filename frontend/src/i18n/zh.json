@@ -85,6 +85,8 @@
   "ratio.ratio": "比例",
   "ratio.size": "尺寸",
   "ratio.sizeWarning": "此分辨率可能不被当前 API 提供商支持，实际输出可能为默认分辨率",
+  "ratio.quality": "质量",
+  "ratio.moderation": "审核",
 
   "mask.title": "局部重绘编辑器",
   "mask.clear": "清除",
