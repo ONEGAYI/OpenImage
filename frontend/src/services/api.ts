@@ -92,6 +92,16 @@ export async function deleteSession(id: string): Promise<void> {
   await request(`/api/sessions/${id}`, { method: "DELETE" });
 }
 
+export async function forkSession(
+  sessionId: string,
+  imageId: string
+): Promise<Session> {
+  return request(`/api/sessions/${sessionId}/fork`, {
+    method: "POST",
+    body: JSON.stringify({ image_id: imageId }),
+  });
+}
+
 // --- Images ---
 
 export async function getSessionImages(sessionId: string): Promise<Image[]> {

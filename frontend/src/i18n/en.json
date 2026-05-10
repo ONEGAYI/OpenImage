@@ -52,7 +52,6 @@
   "detail.removeSelected": "Remove Selected",
   "detail.mixed": "Mixed",
 
-  "input.forkingFrom": "Forking from {{id}}...",
   "input.inpaintThisImage": "Inpaint this image",
   "input.attachImage": "Attach image",
   "input.attach": "Attach",
@@ -102,6 +101,7 @@
   "mask.imagesModeWarning": "Reference images may not be supported in Images API mode. Remove them if errors occur.",
   "toast.imageSaved": "Image saved: {{name}}",
   "toast.imagesSaved": "{{count}} images saved",
+  "toast.sessionForked": "Branch created: {{name}}",
 
   "error.generateFailed": "Generation failed. Please check your API settings or network connection.",
   "error.render": "Render Error",

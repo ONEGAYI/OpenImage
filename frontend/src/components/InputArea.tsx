@@ -26,8 +26,6 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     startGeneration,
     clearAttachments,
     clearError,
-    pendingForkFrom,
-    setPendingForkFrom,
   } = useGenerationStore();
   const sid = activeSessionId ?? "";
   const isThisGenerating = useGenerationStore((s) => s.sessionGenerations[sid]?.isGenerating ?? false);
@@ -72,11 +70,9 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
     startGeneration(
       activeSessionId,
       prompt.trim(),
-      pendingForkFrom || undefined,
       () => {
         setPrompt("");
         clearAttachments();
-        setPendingForkFrom(null);
       }
     );
   };
@@ -148,19 +144,6 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         >
           <span className="text-sm" style={{ color: "var(--error)" }}>{error}</span>
           <button onClick={clearError} className="cursor-pointer text-sm" style={{ color: "var(--error)" }}>x</button>
-        </div>
-      )}
-
-      {pendingForkFrom && (
-        <div
-          className="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs"
-          style={{ background: "rgba(201,100,66,0.08)", border: "1px solid rgba(201,100,66,0.15)", color: "var(--accent)" }}
-        >
-          <span>{t("input.forkingFrom", { id: pendingForkFrom.slice(0, 16) })}</span>
-          <button onClick={() => setPendingForkFrom(null)} className="cursor-pointer text-xs" style={{ color: "var(--accent)" }}
-            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
-            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
-          >{t("common.cancel")}</button>
         </div>
       )}
 

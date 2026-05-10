@@ -15,6 +15,10 @@ class SessionRename(BaseModel):
     name: str
 
 
+class ForkRequest(BaseModel):
+    image_id: str
+
+
 def _sessions(request: Request) -> SessionManager:
     return request.app.state.sessions
 
@@ -56,6 +60,20 @@ async def get_session_images(session_id: str, request: Request):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return await sm.get_images(session_id)
+
+
+@router.post("/{session_id}/fork")
+async def fork_session(session_id: str, body: ForkRequest, request: Request):
+    sm = _sessions(request)
+    store = request.app.state.store
+    session = await sm.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        return await sm.fork(store, session_id, body.image_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/{session_id}")
