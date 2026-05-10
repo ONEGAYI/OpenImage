@@ -10,25 +10,18 @@ ignore_pr_labels = ["skip-review"]
 
 [ignore]
 glob = [
-    "dist/**",
     "**/*.lock",
     "docs/**",
-    "references/**",
-    "*.md",
-    "display_test/**",
-    "benchmarks/**",
-    "build/**",
     "scripts/**",
-    "temp/**",
-    "syntaxes/tree-sitter-tcl.wasm",
+    ".github/**",
     ".vscode/**",
     ".claude/**",
-    ".serena/**",
     ".gitignore",
-    ".coderabbit.yaml",
-    "language-configuration.json",
-    "language-configurations/**",
-    "snippets/*.json",
+    "*.md",
+    "frontend/public/**",
+    "frontend/src-tauri/icons/**",
+    "frontend/src-tauri/windows/**",
+    "frontend/src/i18n/*.json",
 ]
 
 [pr_reviewer]
