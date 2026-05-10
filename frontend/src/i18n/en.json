@@ -70,7 +70,7 @@
   "settings.baseUrlHint": "Leave empty to use the OpenAI default address",
   "settings.apiMode": "API Mode",
   "settings.modeChat": "Chat Completions (/v1/chat/completions, recommended)",
-  "settings.modeImages": "Images API (/v1/images/generations)",
+  "settings.modeImages": "Images API (/v1/images/generations + /edits)",
   "settings.modeResponses": "Responses API (OpenAI native, supports multi-turn editing)",
   "settings.modeHint": "Third-party proxies: Chat Completions or Images API recommended",
   "settings.endpoint": "Endpoint",

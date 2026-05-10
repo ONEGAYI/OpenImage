@@ -70,7 +70,7 @@
   "settings.baseUrlHint": "留空则使用 OpenAI 默认地址",
   "settings.apiMode": "API 模式",
   "settings.modeChat": "Chat Completions（/v1/chat/completions，推荐）",
-  "settings.modeImages": "Images API（/v1/images/generations）",
+  "settings.modeImages": "Images API（/v1/images/generations + /edits）",
   "settings.modeResponses": "Responses API（OpenAI 原生，支持多轮编辑）",
   "settings.modeHint": "第三方代理推荐 Chat Completions 或 Images API",
   "settings.endpoint": "端点",

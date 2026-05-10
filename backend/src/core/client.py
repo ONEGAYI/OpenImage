@@ -41,7 +41,7 @@ class ImageClient:
         model_name: str = DEFAULT_MODEL_NAME,
     ):
         self._openai = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        self._http = httpx.AsyncClient(timeout=180)
+        self._http = httpx.AsyncClient(timeout=httpx.Timeout(300.0, connect=30.0))
         self._api_key = api_key
         self._base_url = normalize_base_url(base_url)
         self.api_mode = api_mode
