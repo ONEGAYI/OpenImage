@@ -23,7 +23,6 @@ interface GenerationState {
   sessionGenerations: Record<string, SessionGenState>;
   error: string | null;
   attachments: AttachedFile[];
-  pendingForkFrom: string | null;
   aspectRatio: (typeof RATIO_OPTIONS)[number];
   imageSize: (typeof SIZE_OPTIONS)[number];
   quality: (typeof QUALITY_OPTIONS)[number];
@@ -35,12 +34,10 @@ interface GenerationState {
   startGeneration: (
     sessionId: string,
     prompt: string,
-    forkFrom?: string,
     onSuccess?: () => void
   ) => void;
   cancelGeneration: (sessionId: string) => void;
   clearError: () => void;
-  setPendingForkFrom: (id: string | null) => void;
   setAspectRatio: (ratio: (typeof RATIO_OPTIONS)[number]) => void;
   setImageSize: (size: (typeof SIZE_OPTIONS)[number]) => void;
   setQuality: (quality: (typeof QUALITY_OPTIONS)[number]) => void;
@@ -74,7 +71,6 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   sessionGenerations: {},
   error: null,
   attachments: [],
-  pendingForkFrom: null,
   aspectRatio: "1:1",
   imageSize: "1K",
   quality: "auto" as (typeof QUALITY_OPTIONS)[number],
@@ -90,7 +86,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
   clearAttachments: () => set({ attachments: [] }),
 
-  startGeneration: (sessionId, prompt, forkFrom, onSuccess) => {
+  startGeneration: (sessionId, prompt, onSuccess) => {
     const { attachments, aspectRatio, imageSize, quality, moderation, sessionGenerations } = get();
     if (sessionGenerations[sessionId]?.isGenerating) return;
 
@@ -111,7 +107,6 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
         session_id: sessionId,
         prompt,
         images,
-        fork_from: forkFrom,
         params,
       },
       (_index, b64) => {
@@ -158,8 +153,6 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
-
-  setPendingForkFrom: (id) => set({ pendingForkFrom: id }),
 
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
   setImageSize: (size) => set({ imageSize: size }),
