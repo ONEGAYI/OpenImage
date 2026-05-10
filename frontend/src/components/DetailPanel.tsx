@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSessionStore } from "../stores/sessionStore";
-import { useGenerationStore } from "../stores/generationStore";
-import { getImageFileUrl, deleteImages, inpaintImage } from "../services/api";
+import { getImageFileUrl, deleteImages, inpaintImage, forkSession } from "../services/api";
 import MaskEditor from "./MaskEditor";
 import { useToastStore } from "../stores/toastStore";
 import { triggerDownload } from "../utils/file";
@@ -11,12 +10,12 @@ import type { Image, MaskImageSource, InpaintRequest } from "../types";
 export default function DetailPanel() {
   const { t } = useTranslation();
   const { images, selectedImageIds, activeSessionId, selectSession, fetchSessions, clearSelection } = useSessionStore();
-  const { setPendingForkFrom } = useGenerationStore();
   const showToast = useToastStore((s) => s.showToast);
   const [deleting, setDeleting] = useState(false);
   const [viewingImage, setViewingImage] = useState<Image | null>(null);
   const [buttonPage, setButtonPage] = useState(0);
   const [editingMask, setEditingMask] = useState<MaskImageSource | null>(null);
+  const [forking, setForking] = useState(false);
 
   const selectedImages = images.filter((img) => selectedImageIds.includes(img.id));
   const isSingle = selectedImages.length === 1;
@@ -65,15 +64,23 @@ export default function DetailPanel() {
     navigator.clipboard.writeText(text);
   };
 
-  const handleFork = () => {
-    if (!singleImage) return;
-    setPendingForkFrom(singleImage.id);
+  const doFork = async (imageId: string) => {
+    if (forking || !activeSessionId) return;
+    setForking(true);
+    try {
+      const newSession = await forkSession(activeSessionId, imageId);
+      await Promise.all([fetchSessions(), selectSession(newSession.id)]);
+      showToast(t("toast.sessionForked", { name: newSession.name }));
+    } catch (err) {
+      console.error("Fork failed:", err);
+      showToast(t("error.generateFailed"));
+    } finally {
+      setForking(false);
+    }
   };
 
-  const handleForkLast = () => {
-    const last = selectedImages[selectedImages.length - 1];
-    if (last) setPendingForkFrom(last.id);
-  };
+  const handleFork = () => { if (singleImage) doFork(singleImage.id); };
+  const handleForkLast = () => { const last = selectedImages[selectedImages.length - 1]; if (last) doFork(last.id); };
 
   if (selectedImages.length === 0) {
     return (
@@ -188,7 +195,7 @@ export default function DetailPanel() {
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
                   >{t("detail.copyPrompt")}</button>
-                  <button onClick={handleFork} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                  <button onClick={handleFork} disabled={forking} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border disabled:opacity-50"
                     style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
@@ -206,7 +213,7 @@ export default function DetailPanel() {
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}
                   >{t("detail.copyPrompts")}</button>
-                  <button onClick={handleForkLast} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border"
+                  <button onClick={handleForkLast} disabled={forking} className="w-full py-[9px] px-4 rounded-lg text-[13px] font-medium text-center transition-all cursor-pointer border disabled:opacity-50"
                     style={{ background: "var(--sand)", color: "var(--accent)", borderColor: "var(--border)", boxSizing: "border-box" }}
                     onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.boxShadow = "0 1px 4px var(--card-shadow)"; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = "var(--sand)"; e.currentTarget.style.boxShadow = "none"; }}

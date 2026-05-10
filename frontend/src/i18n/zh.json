@@ -52,7 +52,6 @@
   "detail.removeSelected": "删除选中",
   "detail.mixed": "混合",
 
-  "input.forkingFrom": "正在从 {{id}} 分叉...",
   "input.inpaintThisImage": "局部重绘此图片",
   "input.attachImage": "附加图片",
   "input.attach": "附加",
@@ -102,6 +101,7 @@
   "mask.imagesModeWarning": "Images API 模式下参考图可能不被支持，如遇错误请移除参考图",
   "toast.imageSaved": "已保存图片 {{name}}",
   "toast.imagesSaved": "已保存 {{count}} 张图片",
+  "toast.sessionForked": "已创建分支: {{name}}",
 
   "error.generateFailed": "生成失败，请检查 API 设置或网络连接",
   "error.render": "渲染错误",

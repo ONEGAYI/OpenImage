@@ -57,32 +57,16 @@ class GenerateRequest(BaseModel):
     session_id: str
     prompt: str
     images: list[ImageInput] = []
-    fork_from: str | None = None
     params: GenerateParams | None = None
 
 
 async def _resolve_previous(
-    request: Request, session_id: str, fork_from: str | None
+    request: Request, session_id: str
 ) -> tuple[str | None, str | None]:
     """解析上一步上下文：返回 (previous_response_id, history_image_b64)"""
     db = request.app.state.db
     store = request.app.state.store
 
-    # fork_from：查指定图片的 response_id 和 file_path（一次查询）
-    if fork_from:
-        conn = db.connection()
-        cursor = await conn.execute(
-            "SELECT response_id, file_path FROM images WHERE id = ?", (fork_from,)
-        )
-        row = await cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Fork source image not found")
-
-        response_id = row["response_id"]
-        img_b64 = _read_image_b64(store, row["file_path"])
-        return response_id, img_b64
-
-    # 无 fork：response_id 取 session head，history 取最新图片
     sessions = request.app.state.sessions
     session = await sessions.get(session_id)
     response_id = session.get("head_response_id") if session else None
@@ -178,7 +162,7 @@ async def generate(body: GenerateRequest, request: Request):
     await require_session(request, body.session_id)
 
     previous_response_id, history_image_b64 = await _resolve_previous(
-        request, body.session_id, body.fork_from
+        request, body.session_id
     )
 
     params = body.params or GenerateParams()
@@ -209,7 +193,7 @@ async def generate(body: GenerateRequest, request: Request):
                 response_id=result.response_id,
                 image_b64=result.image_b64,
                 revised_prompt=result.revised_prompt,
-                parent_image_id=body.fork_from,
+                parent_image_id=None,
                 params=params,
             )
 
