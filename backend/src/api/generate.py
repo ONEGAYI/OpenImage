@@ -26,8 +26,10 @@ class ImageInput(BaseModel):
 
 class GenerateParams(BaseModel):
     size: str = "1024x1024"
-    quality: str = "high"
+    quality: str = "auto"
     output_format: str = "png"
+    input_fidelity: str | None = None
+    moderation: str | None = None
 
 
 SIZE_TABLE: dict[str, dict[str, str]] = {

@@ -33,6 +33,8 @@ export interface GenerateParams {
   size?: string;
   quality?: string;
   output_format?: string;
+  input_fidelity?: string;
+  moderation?: string;
 }
 
 export interface GenerateRequest {

@@ -20,7 +20,7 @@ API_MODE_CHAT = "chat"
 
 DEFAULT_API_MODE = API_MODE_RESPONSES
 DEFAULT_MODEL_NAME = "gpt-image-2"
-_PARAM_KEYS = ("size", "quality", "output_format")
+_PARAM_KEYS = ("size", "quality", "output_format", "input_fidelity", "moderation")
 _INPAINT_META_PROMPT = "[Inpaint] Replace the masked (semi-transparent) region in the first image. The second image shows the mask area."
 
 

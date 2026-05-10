@@ -192,7 +192,7 @@ export default function InputArea({ onOpenSettings }: InputAreaProps) {
         </div>
       )}
 
-      <div className="flex gap-1 pb-0.5 items-end">
+      <div className="flex gap-1 pb-0.5 items-end" style={{ overflow: "visible" }}>
         <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" />
         <button
           onClick={handleAttach} disabled={isThisGenerating}

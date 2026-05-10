@@ -10,6 +10,8 @@ export const SIZE_MAP: Record<string, Record<string, string>> = {
 
 export const RATIO_OPTIONS = ["1:1", "16:9", "9:16"] as const;
 export const SIZE_OPTIONS = ["1K", "2K", "4K"] as const;
+export const QUALITY_OPTIONS = ["auto", "low", "medium", "high"] as const;
+export const MODERATION_OPTIONS = ["auto", "low"] as const;
 
 interface SessionGenState {
   isGenerating: boolean;
@@ -24,6 +26,8 @@ interface GenerationState {
   pendingForkFrom: string | null;
   aspectRatio: (typeof RATIO_OPTIONS)[number];
   imageSize: (typeof SIZE_OPTIONS)[number];
+  quality: (typeof QUALITY_OPTIONS)[number];
+  moderation: (typeof MODERATION_OPTIONS)[number];
 
   addAttachment: (file: AttachedFile) => void;
   removeAttachment: (id: string) => void;
@@ -39,6 +43,8 @@ interface GenerationState {
   setPendingForkFrom: (id: string | null) => void;
   setAspectRatio: (ratio: (typeof RATIO_OPTIONS)[number]) => void;
   setImageSize: (size: (typeof SIZE_OPTIONS)[number]) => void;
+  setQuality: (quality: (typeof QUALITY_OPTIONS)[number]) => void;
+  setModeration: (moderation: (typeof MODERATION_OPTIONS)[number]) => void;
 }
 
 const defaultGen: SessionGenState = {
@@ -71,6 +77,8 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   pendingForkFrom: null,
   aspectRatio: "1:1",
   imageSize: "1K",
+  quality: "auto" as (typeof QUALITY_OPTIONS)[number],
+  moderation: "auto" as (typeof MODERATION_OPTIONS)[number],
 
   addAttachment: (file) =>
     set((state) => ({ attachments: [...state.attachments, file] })),
@@ -83,7 +91,7 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   clearAttachments: () => set({ attachments: [] }),
 
   startGeneration: (sessionId, prompt, forkFrom, onSuccess) => {
-    const { attachments, aspectRatio, imageSize, sessionGenerations } = get();
+    const { attachments, aspectRatio, imageSize, quality, moderation, sessionGenerations } = get();
     if (sessionGenerations[sessionId]?.isGenerating) return;
 
     const images = attachments.map((a) => ({
@@ -92,13 +100,19 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       media_type: a.media_type,
     }));
 
+    const params: Record<string, string> = {
+      size: SIZE_MAP[aspectRatio]?.[imageSize] || "1024x1024",
+      quality,
+      moderation,
+    };
+
     const controller = generateImage(
       {
         session_id: sessionId,
         prompt,
         images,
         fork_from: forkFrom,
-        params: { size: SIZE_MAP[aspectRatio]?.[imageSize] || "1024x1024" },
+        params,
       },
       (_index, b64) => {
         set((state) => ({
@@ -149,4 +163,6 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
 
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
   setImageSize: (size) => set({ imageSize: size }),
+  setQuality: (q) => set({ quality: q }),
+  setModeration: (m) => set({ moderation: m }),
 }));

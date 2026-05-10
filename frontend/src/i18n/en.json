@@ -85,6 +85,8 @@
   "ratio.ratio": "Ratio",
   "ratio.size": "Size",
   "ratio.sizeWarning": "This resolution may not be supported by the current API provider. Actual output may differ.",
+  "ratio.quality": "Quality",
+  "ratio.moderation": "Moderation",
 
   "mask.title": "Inpaint Editor",
   "mask.clear": "Clear",
