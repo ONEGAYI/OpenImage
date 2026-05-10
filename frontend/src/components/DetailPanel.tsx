@@ -64,11 +64,11 @@ export default function DetailPanel() {
     navigator.clipboard.writeText(text);
   };
 
-  const handleFork = async () => {
-    if (!singleImage || forking || !activeSessionId) return;
+  const doFork = async (imageId: string) => {
+    if (forking || !activeSessionId) return;
     setForking(true);
     try {
-      const newSession = await forkSession(activeSessionId, singleImage.id);
+      const newSession = await forkSession(activeSessionId, imageId);
       await Promise.all([fetchSessions(), selectSession(newSession.id)]);
       showToast(t("toast.sessionForked", { name: newSession.name }));
     } catch (err) {
@@ -79,21 +79,8 @@ export default function DetailPanel() {
     }
   };
 
-  const handleForkLast = async () => {
-    const last = selectedImages[selectedImages.length - 1];
-    if (!last || forking || !activeSessionId) return;
-    setForking(true);
-    try {
-      const newSession = await forkSession(activeSessionId, last.id);
-      await Promise.all([fetchSessions(), selectSession(newSession.id)]);
-      showToast(t("toast.sessionForked", { name: newSession.name }));
-    } catch (err) {
-      console.error("Fork failed:", err);
-      showToast(t("error.generateFailed"));
-    } finally {
-      setForking(false);
-    }
-  };
+  const handleFork = () => { if (singleImage) doFork(singleImage.id); };
+  const handleForkLast = () => { const last = selectedImages[selectedImages.length - 1]; if (last) doFork(last.id); };
 
   if (selectedImages.length === 0) {
     return (

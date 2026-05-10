@@ -10,6 +10,10 @@ def _sess_id() -> str:
     return gen_id("sess")
 
 
+def _extract_filename(file_path: str) -> str:
+    return file_path.split("/", 1)[1] if "/" in file_path else file_path
+
+
 class SessionManager:
     def __init__(self, db: Database):
         self._db = db
@@ -101,19 +105,11 @@ class SessionManager:
         src_session = await self.get(session_id)
         base_name = src_session["name"]
         cursor = await conn.execute(
-            "SELECT name FROM sessions WHERE name LIKE ?",
+            "SELECT COUNT(*) as cnt FROM sessions WHERE name LIKE ?",
             (f"{base_name} (Fork #%)",),
         )
-        fork_rows = await cursor.fetchall()
-        next_num = len(fork_rows) + 1
-        fork_name = f"{base_name} (Fork #{next_num})"
-
-        fork_id = _sess_id()
-        await conn.execute(
-            "INSERT INTO sessions (id, name, head_response_id) VALUES (?, ?, ?)",
-            (fork_id, fork_name, target_response_id),
-        )
-        await conn.commit()
+        fork_count = (await cursor.fetchone())["cnt"]
+        fork_name = f"{base_name} (Fork #{fork_count + 1})"
 
         cursor = await conn.execute(
             "SELECT * FROM images WHERE session_id = ? AND step <= ? ORDER BY step ASC",
@@ -121,24 +117,28 @@ class SessionManager:
         )
         rows = await cursor.fetchall()
 
-        file_names = []
-        for row in rows:
-            file_names.append(row["file_path"].split("/", 1)[1] if "/" in row["file_path"] else row["file_path"])
+        file_names = [_extract_filename(row["file_path"]) for row in rows]
+
+        fork_id = _sess_id()
         store.copy_session_images(session_id, fork_id, file_names)
 
+        await conn.execute(
+            "INSERT INTO sessions (id, name, head_response_id) VALUES (?, ?, ?)",
+            (fork_id, fork_name, target_response_id),
+        )
+
         for row in rows:
-            new_img_id = gen_id("img")
-            orig_file_name = row["file_path"].split("/", 1)[1] if "/" in row["file_path"] else row["file_path"]
-            new_file_path = f"{fork_id}/{orig_file_name}"
+            orig_file_name = _extract_filename(row["file_path"])
             await conn.execute(
                 """INSERT INTO images
                 (id, session_id, step, response_id, prompt, revised_prompt,
                  parent_image_id, file_path, size, quality, output_format)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    new_img_id, fork_id, row["step"], row["response_id"],
+                    gen_id("img"), fork_id, row["step"], row["response_id"],
                     row["prompt"], row["revised_prompt"], row["parent_image_id"],
-                    new_file_path, row["size"], row["quality"], row["output_format"],
+                    f"{fork_id}/{orig_file_name}", row["size"], row["quality"],
+                    row["output_format"],
                 ),
             )
         await conn.commit()

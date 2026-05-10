@@ -41,7 +41,7 @@ class ImageStore:
         dst_dir = self._images_dir / dst_session_id
         dst_dir.mkdir(parents=True, exist_ok=True)
         for name in file_names:
-            src_file = src_dir / name
-            dst_file = dst_dir / name
-            if src_file.exists():
-                dst_file.write_bytes(src_file.read_bytes())
+            try:
+                (dst_dir / name).write_bytes((src_dir / name).read_bytes())
+            except FileNotFoundError:
+                pass
