@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AiBlock, LLMMessage } from "../../types";
+import MarkdownRenderer from "./MarkdownRenderer";
 import AiBlockRenderer from "./AiBlockRenderer";
 import ThinkingCard from "./ThinkingCard";
 
@@ -111,7 +112,7 @@ export default function ChatMessage({ message, streamingText, currentAiBlock, st
               fontSize: 13,
             }}
           >
-            {displayText}
+            {isUser || isStreaming ? displayText : <MarkdownRenderer content={displayText} />}
             {isStreaming && (
               <span className="animate-pulse" style={{ marginLeft: 1 }}>▊</span>
             )}
