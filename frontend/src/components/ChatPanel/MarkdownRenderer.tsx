@@ -42,9 +42,17 @@ interface Props {
   content: string;
 }
 
+const REGISTERED_LANGS = new Set([
+  "css", "html", "javascript", "js", "json", "python", "py",
+  "rust", "typescript", "ts", "bash", "shell", "sh",
+  "yaml", "yml", "markdown", "md", "sql",
+]);
+
 function parseLang(className?: string): string {
   const match = (className || "").match(/language-(\w+)/);
-  return match ? match[1] : "text";
+  const lang = match?.[1];
+  if (!lang || !REGISTERED_LANGS.has(lang)) return "text";
+  return lang;
 }
 
 const REMARK_PLUGINS = [remarkGfm, remarkMath];
