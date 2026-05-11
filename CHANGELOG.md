@@ -5,6 +5,24 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.8.0] - 2026-05-11
+
+### 新功能
+
+- **Fork 会话分支**：从任意生成步骤创建独立分支，实现图片迭代的多路径探索（PR #3）
+  - 后端新增 `POST /api/sessions/{id}/fork` 端点，接受 `image_id` 参数，创建新会话并拷贝目标图片及之前所有图片的记录和文件
+  - `SessionManager.fork()` 方法：自动命名（`原会话名 (Fork #N)`）、数据库记录复制、`head_response_id` 继承
+  - `Storage.copy_session_images()` 方法：物理拷贝图片文件到新会话目录，源文件缺失时抛出异常而非静默跳过
+  - 前端 DetailPanel 新增 Fork 按钮，直接调用 API 创建独立分支
+
+### Bug 修复
+
+- 增大图片生成 HTTP 超时（180s → 300s，连接超时 30s），修复 Images 模式下长时间生成请求超时问题
+
+### 其他改进
+
+- 移除旧的 `fork_from` 前端状态（`pendingForkFrom`、`forkFrom`）和生成参数，简化为直接 API 调用模式
+
 ## [1.7.0] - 2026-05-10
 
 ### 新功能
@@ -277,6 +295,7 @@
 - 应用图标集：多尺寸 PNG、macOS ICNS、Windows ICO
 
 <!-- 变更链接 -->
+[1.8.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/ONEGAYI/OpenImage/compare/v1.4.0...v1.5.0

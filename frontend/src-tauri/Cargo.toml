@@ -1,6 +1,6 @@
 [package]
 name = "openimage"
-version = "1.7.0"
+version = "1.8.0"
 description = "GPT Image 2 Desktop Client"
 authors = ["you"]
 edition = "2021"
